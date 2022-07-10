@@ -2087,7 +2087,7 @@ Function login()
     DIM oConfiguration:	set oConfiguration = Server.CreateObject("MSXML2.DOMDocument"): 
     oConfiguration.Async = false: 
     oConfiguration.setProperty "SelectionLanguage", "XPath"
-    oConfiguration.Load(Server.MapPath("../../.config/system.config"))
+    oConfiguration.Load(Server.MapPath("../system.config"))
 
     DIM sConnectionId
     IF  request.form("database_id")<>"" THEN
