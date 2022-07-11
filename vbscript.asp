@@ -2148,22 +2148,23 @@ Function login()
         sDefaultUser     	= ""
     END IF
 	DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
+	DIM decrypted_password
 	If authorization<>"" Then
 		DIM DecodedAuthorization: DecodedAuthorization = Base64Decode(MID(authorization,7))
 		sUserLogin = Split(DecodedAuthorization, ":")(0)
 		sUserName = sUserLogin
-		DIM sPasswordPart: sPasswordPart = Split(DecodedAuthorization, ":")(1)
-		If LEN(sPasswordPart) = 32 then
-			sPassword = sPasswordPart
+		decrypted_password = Split(DecodedAuthorization, ":")(1)
+		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) = 0 then
+			sPassword = decrypted_password
 		Else
-			sPassword = Hash("md5",sPasswordPart)
+			sPassword = Hash("md5",decrypted_password)
 		End If
 	Else
 		sUserLogin = LCASE(URLDecode(request.form("UserName")))
 		sUserName = sUserLogin
 		sPassword = URLDecode(request.form("Password"))
 	End if
-    IF ISNULL(oDatabase.getAttribute("User")) THEN
+    IF ISNULL(sDatabaseUser) THEN
         IF sUserName="" AND sPassword="" AND sDefaultUser<>"" THEN
             sUserName = sDefaultUser
         END IF
@@ -2183,19 +2184,29 @@ Function login()
         IF ISNULL(sDatabaseUser) THEN
             sDatabaseUser = sUserName
         END IF
-        sDatabasePassword 	= oUser.getAttribute("InstancePassword")
         IF sPassword="" AND NOT ISNULL(oUser.getAttribute("Password")) THEN
             sPassword = oUser.getAttribute("Password")
         END IF
+		IF NOT ISNULL(oUser.getAttribute("InstancePassword")) THEN
+            sDatabasePassword 	= oUser.getAttribute("InstancePassword")
+        END IF		
     ELSE
         IF sUserName<>"webmaster" THEN
             sDatabaseUser = sUserName
-            sDatabasePassword = "40A965D05136639974C40FAF6CFDF21D"
-            IF sUserName="guest" THEN
-                sPassword = "40A965D05136639974C40FAF6CFDF21D"
-            END IF
+            'sDatabasePassword = "40A965D05136639974C40FAF6CFDF21D"
+            'IF sUserName="guest" THEN
+            '    sPassword = "40A965D05136639974C40FAF6CFDF21D"
+            'END IF
         END IF
+		sUserLogin = LCASE(URLDecode(request.form("UserName")))
+		sUserName = sUserLogin
+		sPassword = URLDecode(request.form("Password"))
     END IF
+
+	IF ISNULL(sDatabasePassword) THEN
+		sDatabasePassword = decrypted_password
+	END IF
+
     SESSION("secret_database_user") = sDatabaseUser
     SESSION("secret_database_password") = sDatabasePassword
     SESSION("secret_server_id") = oDatabase.getAttribute("Server")
@@ -2205,32 +2216,36 @@ Function login()
     
 	ON ERROR RESUME NEXT
     checkConnection(oCn)
-    session("user_login") = sUserName
-    strSQL="EXEC [#Security].Authenticate '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "'"
-    'response.write "strSQL: "&strSQL: response.end
-    Set rsResult = Server.CreateObject("ADODB.RecordSet")
-    rsResult.CursorLocation 	= 3
-    rsResult.CursorType 		= 3
-    set rsResult = oCn.Execute(strSQL)
-    IF Err.Number<>0 THEN 
-        Session("AccessGranted") = FALSE
-        session("status") = "unauthorized"
-        Response.ContentType = "application/json"
-        Response.CharSet = "ISO-8859-1"
-        IF Err.Number=-2147217911 THEN
-            Response.Status = "401 Unauthorized"
-        ELSE 
-            Response.Status = "409 Conflict"
-        END IF
+	IF oCn.state=0 THEN
+		Set Login = nothing
 	ELSE
-		Session("AccessGranted") = TRUE
-        session("status") = "authorized"
-    END IF
-    checkConnection(oCn)
-    '	alert('<%= REPLACE(strSQL, "'", "\'") %%')
-    '<%	'response.end
-    'Response.CodePage = 65001
-    'Response.CharSet = "UTF-8"
-    Set Login = rsResult
+		session("user_login") = sUserName
+		strSQL="EXEC [#Security].Authenticate '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "'"
+		'response.write "strSQL: "&strSQL: response.end
+		Set rsResult = Server.CreateObject("ADODB.RecordSet")
+		rsResult.CursorLocation 	= 3
+		rsResult.CursorType 		= 3
+		set rsResult = oCn.Execute(strSQL)
+		IF Err.Number<>0 THEN 
+			Session("AccessGranted") = FALSE
+			session("status") = "unauthorized"
+			Response.ContentType = "application/json"
+			Response.CharSet = "ISO-8859-1"
+			IF Err.Number=-2147217911 THEN
+				Response.Status = "401 Unauthorized"
+			ELSE 
+				Response.Status = "409 Conflict"
+			END IF
+		ELSE
+			Session("AccessGranted") = TRUE
+			session("status") = "authorized"
+		END IF
+		checkConnection(oCn)
+		'	alert('<%= REPLACE(strSQL, "'", "\'") %%')
+		'<%	'response.end
+		'Response.CodePage = 65001
+		'Response.CharSet = "UTF-8"
+		Set Login = rsResult
+	END IF
 End Function
 %>

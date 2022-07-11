@@ -1,11 +1,14 @@
 <!--#include file="vbscript.asp"-->
 <%
-    set rsResult = login
     Response.ContentType = "application/json" 
+    Response.Status = "401 Unauthorized"
+    set rsResult = login
     IF Err.number<>0 Then
         ErrorDesc=""
         IF session("user_login")<>"" THEN
             ErrorDesc=SqlRegEx.Replace(Err.Description, "")
+        ELSE 
+            ErrorDesc="Conexión no autorizada"
         END IF
         Session.Contents.Remove("StrCnn")
         %>
@@ -24,6 +27,7 @@
 	    Session("AccessGranted") = FALSE
         session("status") = "unauthorized"
     ELSE
+        Response.Status = "200 Ok"
 	    Session("AccessGranted") = TRUE
         session("status") = "authorized"
 	    Response.Cookies("AntiPopUps") = REQUEST.FORM("AntiPopUps")
