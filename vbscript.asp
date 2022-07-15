@@ -2088,6 +2088,9 @@ Function login()
     oConfiguration.Async = false: 
     oConfiguration.setProperty "SelectionLanguage", "XPath"
     oConfiguration.Load(Server.MapPath("../system.config"))
+	IF oConfiguration.documentElement IS NOTHING THEN
+		oConfiguration.Load(Server.MapPath("../../.config/system.config"))
+	END IF
 
     DIM sConnectionId
     IF  request.form("database_id")<>"" THEN
@@ -2169,7 +2172,7 @@ Function login()
             sUserName = sDefaultUser
         END IF
 
-        DIM oUser: SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or @Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3))])[1]")
+        DIM oUser: SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
         IF oUser IS NOTHING THEN
             Response.ContentType = "application/json"
             Response.CharSet = "ISO-8859-1"
