@@ -41,7 +41,7 @@ IF Request.Form.Count>0 THEN
         END IF
     NEXT %>{"success":true}<%
 END IF
-checkConnection()
+checkConnection(oCn)
 If oCn.State = 1 THEN
     oCn.Close
 END IF
