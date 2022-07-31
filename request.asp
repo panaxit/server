@@ -147,7 +147,8 @@ END IF
     
 Response.CharSet = "ISO-8859-1"
 DIM api_key: api_key = Request.ServerVariables("HTTP_API_KEY") 'TODO: Implement
-DIM root_node: root_node = Request.ServerVariables("HTTP_ROOT_NODE")
+DIM root_node: root_node = Request.ServerVariables("HTTP_X_ROOT_NODE")
+DIM namespaces: namespaces = Request.ServerVariables("HTTP_X_NAMESPACES")
 'IF 1=1 OR Request.ServerVariables("HTTP_ROOT_NODE").Count>0 AND root_node = "" THEN
 IF root_node="" THEN
     root_node="x:response"
@@ -165,7 +166,7 @@ END IF
 'RESOURCE
 DIM command: command = request.querystring("command")
 'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
-DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
+DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
 'response.write "<!-- "&sRequestType&" -->": response.end
 'strSQL=URLDecode(sRequestType) 'El símbol de (+) %2B es decodificado mal, revisar si es necesario decodificar
 DIM rsType: SET rsType = oCn.Execute(sRequestType)
@@ -285,7 +286,7 @@ IF 1=0 and fso.FileExists(file_location) THEN
     Response.ContentType = "text/xml"
     Response.write "<!-- Desde cache: "&file_name&"-->"
     DIM xslFile, xslValues
-    xslFile=server.MapPath(".")&"\..\resources\normalize_values.xslt"
+    xslFile=server.MapPath(".")&"\normalize_values.xslt"
     Set xslValues=Server.CreateObject("Microsoft.XMLDOM")
     xslValues.async="false"
     xslValues.load(xslFile)
@@ -494,7 +495,10 @@ IF INSTR(sType,"P")<>0 THEN
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
     strSQL="(SELECT "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 FOR XML PATH('x:r'), TYPE)"
-    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT "&strSQL&" FOR XML PATH('')"& root_node &", TYPE"
+    IF namespaces<>"" THEN
+        namespaces = ", " & namespaces
+    END IF
+    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&") SELECT "&strSQL&" FOR XML PATH('')"& root_node &", TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     strSQL="SELECT "&command & data_predicate
 ELSE
@@ -554,7 +558,7 @@ DO
                         END IF
                     END IF
                     'oXMLFile.loadXML(oXMLFile.transformNode(xslValues))
-                    xslFile=server.MapPath(".")&"\..\resources\normalize_namespaces.xslt"
+                    xslFile=server.MapPath(".")&"\normalize_namespaces.xslt"
                     IF (fso.FileExists(xslFile)) THEN
                         Set xslDoc=Server.CreateObject("Microsoft.XMLDOM")
                         xslDoc.async="false"
