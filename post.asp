@@ -96,7 +96,7 @@ END IF
 DIM oConfiguration:	set oConfiguration = Server.CreateObject("MSXML2.DOMDocument"): 
 oConfiguration.Async = false: 
 oConfiguration.setProperty "SelectionLanguage", "XPath"
-oConfiguration.Load(Server.MapPath("../../../config/system.config"))
+oConfiguration.Load(Server.MapPath("../../config/system.config"))
 
 IF NOT(Session("AccessGranted")) THEN 
     Response.ContentType = "application/javascript"
@@ -180,10 +180,14 @@ DIM xRepository: SET xRepository=oConfiguration.documentElement.selectSingleNode
 IF NOT (xRepository IS NOTHING) THEN
     base_folder=xRepository.getAttribute("Location")
 ELSE
-    base_folder=server.MapPath("../../../FilesRepository")
+    base_folder=server.MapPath("../FilesRepository")
 END IF
 
-strSQL="SET NOCOUNT ON; DECLARE @success BIT, @transaction_id INT, @response XML; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:submit/*").xml, "&", "&amp;"), "'", "''"),"C:\fakepath",base_folder)&"', @source='"&REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:source/*").xml, "&", "&amp;"), "'", "''")&"', @user_id="& session("user_id") &", @exec=1, @success=@success OUTPUT, @transaction_id=@transaction_id OUTPUT, @response=@response OUTPUT; SELECT success=@success, transaction_id=@transaction_id, @response FOR XML PATH('response'), type"
+user_id = session("user_id")
+if user_id = "" or ISNULL(user_id) = TRUE then
+    user_id = "-1"
+end if
+strSQL="SET NOCOUNT ON; DECLARE @success BIT, @transaction_id INT, @response XML; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:submit/*").xml, "&", "&amp;"), "'", "''"),"C:\fakepath",base_folder)&"', @source='"&REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:source/*").xml, "&", "&amp;"), "'", "''")&"', @user_id="& user_id &", @exec=1, @success=@success OUTPUT, @transaction_id=@transaction_id OUTPUT, @response=@response OUTPUT; SELECT success=@success, transaction_id=@transaction_id, @response FOR XML PATH('response'), type"
 
 strSQL="BEGIN TRY "&strSQL&" END TRY BEGIN CATCH DECLARE @Message NVARCHAR(MAX); SELECT @Message=ERROR_MESSAGE(); EXEC [$Table].[getCustomMessage] @Message=@Message, @Exec=1; END CATCH"
 
