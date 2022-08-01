@@ -161,9 +161,6 @@ DIM namespaces: namespaces = Request.ServerVariables("HTTP_X_NAMESPACES")
 IF root_node="" THEN
     root_node="x:response"
 END IF
-IF root_node<>"" THEN
-    root_node = ", ROOT('"& root_node &"')"
-END IF
 
 DIM max_recordsets: max_recordsets = Request.ServerVariables("HTTP_X_MAX_RECORDSETS")
 
@@ -499,14 +496,14 @@ END IF
 IF INSTR(sType,"P")<>0 THEN
     strSQL="EXEC "&command& data_parameters &"; "
     IF sOutputParams<>"" THEN 
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:response'), TYPE"
+        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:response'), TYPE"
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
-    strSQL="(SELECT [@row_number]=ROW_NUMBER() OVER(ORDER BY (SELECT NULL)), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @offset ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
+    strSQL="(SELECT [@state:position]=ROW_NUMBER() OVER(ORDER BY (SELECT NULL)), [@state:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
     IF namespaces<>"" THEN
         namespaces = ", " & namespaces
     END IF
-    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @offset INT, @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&", @offset=@page_size * (@page_index-1); WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ) SELECT "&strSQL&" FOR XML PATH('')"& root_node &", TYPE"
+    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ) SELECT [@state:pageIndex]=@page_index, [@state:pageSize]=@page_size, "&strSQL&" FOR XML PATH('"&root_node&"'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     strSQL="SELECT "&command & data_predicate
 ELSE
