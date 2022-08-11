@@ -2090,6 +2090,9 @@ Function login()
     oConfiguration.Load(Server.MapPath("../system.config"))
 	IF oConfiguration.documentElement IS NOTHING THEN
 		oConfiguration.Load(Server.MapPath("../../.config/system.config"))
+		IF oConfiguration.documentElement IS NOTHING THEN
+			oConfiguration.Load(Server.MapPath("../../config/system.config"))
+		END IF
 	END IF
 
     DIM sConnectionId
