@@ -135,7 +135,9 @@ xmlDoc.async="false"
 xmlDoc.load(request)
 'xmlDoc.load(server.MapPath("..\panax\post from v12 entity - ejemplo Puesto.xml"))
 
-xmlDoc.selectSingleNode("//x:source/*").setAttribute "session:user_id", session("user_id")
+IF ISNULL(session("user_id")) = FALSE THEN
+    xmlDoc.selectSingleNode("//x:source/*").setAttribute "session:user_id", session("user_id")
+END IF
 DIM xmlSubmit
 Set xmlSubmit=Server.CreateObject("Microsoft.XMLDOM")
 xmlSubmit.async="false"
@@ -158,11 +160,11 @@ ELSE
 END IF
 
 DIM file_location, parent_folder
-parent_folder=server.MapPath(".")&"\..\..\sessions\save\"
+parent_folder=server.MapPath(".")&"\..\sessions\save\"
 file_location=parent_folder&"user_"&session("user_id")&"_"&REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_")&".xml"
 set fso=CreateObject("Scripting.FileSystemObject")
 If  Not fso.FolderExists(parent_folder) Then      
-  fso.CreateFolder (parent_folder)   
+  CreateFolder(parent_folder)
 End If
 
 'response.write server.MapPath(".")&"\custom\sessions\save\user_"&session("user_id")&"_"&REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_")&".xml"
@@ -236,7 +238,7 @@ DO
                         Response.Status = "409 Conflict"
                     END IF
                     'oXMLFile.loadXML(oXMLFile.transformNode(xslValues))
-                    xslFile=server.MapPath(".")&"\..\resources\normalize_namespaces.xslt"
+                    xslFile=server.MapPath(".")&"\normalize_namespaces.xslt"
                     Set xslDoc=Server.CreateObject("Microsoft.XMLDOM")
                     xslDoc.async="false"
                     xslDoc.load(xslFile)

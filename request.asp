@@ -194,6 +194,7 @@ END IF
 
 'FIELDS
 DIM data_fields: data_fields = Request.ServerVariables("HTTP_X_DATA_FIELDS")
+data_fields = URLDecode(""&data_fields)
 
 DIM data_value: data_value = Request.ServerVariables("HTTP_X_DATA_VALUE")
 IF data_value<>"" THEN
@@ -269,10 +270,12 @@ End If
 DIM full_request: full_request=data_fields&"&"&command&"&"&data_predicate
 DIM file_location, file_name
 IF INSTR(content_type,"xml")>0 THEN
-    file_name=Hash("md5",full_request) &".xml"
+    file_name=Hash("md5",REPLACE(full_request,"ñ","")) &".xml"
+        'response.Clear
 ELSEIF INSTR(content_type,"javascript")>0 THEN
-    file_name=Hash("md5",full_request) &".js"
+    file_name=Hash("md5",REPLACE(full_request,"ñ","")) &".js"
 END IF
+
 'response.write "full_request: "&file_name: response.end
 DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&session("user_login")&"\"
 file_location=parent_folder&file_name
