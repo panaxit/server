@@ -139,10 +139,10 @@ Function Hash(HashType, Target)
     On Error GoTo 0
 End Function
 
-Sub BuildFullPath(ByVal FullPath)
+Sub CreateFolder(ByVal FullPath)
     Set fso = CreateObject("Scripting.FileSystemObject")
     If Not fso.FolderExists(FullPath) Then
-        BuildFullPath fso.GetParentFolderName(FullPath)
+        CreateFolder fso.GetParentFolderName(FullPath)
         fso.CreateFolder FullPath
     End If
 End Sub
@@ -742,16 +742,16 @@ Function FormatValue(ByVal vValue, ByVal sFormat, ByVal iDecimalPositions)
 	END SELECT
 End Function
 
-Function URLDecode(sConvert)
+Function URLDecode2(sConvert)
     Dim aSplit
     Dim sOutput
     Dim I
 	IF sConvert="" THEN 
-       URLDecode = ""
+       URLDecode2 = ""
        Exit Function
     End If
     If IsNull(sConvert) Then
-       URLDecode = ""
+       URLDecode2 = ""
        Exit Function
     End If
 	
@@ -777,7 +777,50 @@ Function URLDecode(sConvert)
         END IF
       Next
     End If
-    URLDecode = sOutput
+    URLDecode2 = sOutput
+End Function
+
+Function RegExTest(str, patrn)
+	Dim regEx
+	Set regEx = New RegExp
+	regEx.IgnoreCase = True
+	regEx.Pattern = patrn
+	RegExTest = regEx.Test(str)
+End Function
+
+Function URLDecode(sStr)
+	'UrlDecode = URLDecode2(sStr): Exit Function
+	DIM str, code, a0
+	str=""
+	code=sStr&""
+	code=Replace(code,"+"," ")
+	While len(code)>0
+		If InStr(code,"%")>0 Then
+			str = str & Mid(code,1,InStr(code,"%")-1)
+			code = Mid(code,InStr(code,"%"))
+			a0 = UCase(Mid(code,2,1))
+			If a0="U" And RegExTest(code,"^%u[0-9A-F]{4}") Then
+				str = str & ChrW((Int("&H" & Mid(code,3,4))))
+				code = Mid(code,7)
+			ElseIf a0="E" And RegExTest(code,"^(%[0-9A-F]{2}){3}") Then
+				str = str & ChrW((Int("&H" & Mid(code,2,2)) And 15) * 4096 + (Int("&H" & Mid(code,5,2)) And 63) * 64 + (Int("&H" & Mid(code,8,2)) And 63))
+				code = Mid(code,10)
+			ElseIf a0>="C" And a0<="D" And RegExTest(code,"^(%[0-9A-F]{2}){2}") Then
+				str = str & ChrW((Int("&H" & Mid(code,2,2)) And 3) * 64 + (Int("&H" & Mid(code,5,2)) And 63))
+				code = Mid(code,7)
+			ElseIf (a0<="B" Or a0="F") And RegExTest(code,"^%[0-9A-F]{2}") Then
+				str = str & Chr(Int("&H" & Mid(code,2,2)))
+				code = Mid(code,4)
+			Else
+				str = str & "%"
+				code = Mid(code,2)
+			End If
+		Else
+			str = str & code
+			code = ""
+		End If
+	Wend
+	URLDecode = str
 End Function
 
 Function encodeURL(sConvert)

@@ -147,13 +147,19 @@ END IF
     
 Response.CharSet = "ISO-8859-1"
 DIM api_key: api_key = Request.ServerVariables("HTTP_API_KEY") 'TODO: Implement
-DIM root_node: root_node = Request.ServerVariables("HTTP_ROOT_NODE")
+DIM root_node: root_node = Request.ServerVariables("HTTP_X_ROOT_NODE")
+DIM page_size: page_size = Request.ServerVariables("HTTP_X_PAGE_SIZE")
+IF page_size="" THEN
+    page_size="20"
+END IF
+DIM page_index: page_index = Request.ServerVariables("HTTP_X_PAGE_INDEX")
+IF page_index="" THEN
+    page_index="1"
+END IF
+DIM namespaces: namespaces = Request.ServerVariables("HTTP_X_NAMESPACES")
 'IF 1=1 OR Request.ServerVariables("HTTP_ROOT_NODE").Count>0 AND root_node = "" THEN
 IF root_node="" THEN
     root_node="x:response"
-END IF
-IF root_node<>"" THEN
-    root_node = ", ROOT('"& root_node &"')"
 END IF
 
 DIM max_recordsets: max_recordsets = Request.ServerVariables("HTTP_X_MAX_RECORDSETS")
@@ -188,6 +194,7 @@ END IF
 
 'FIELDS
 DIM data_fields: data_fields = Request.ServerVariables("HTTP_X_DATA_FIELDS")
+data_fields = URLDecode(""&data_fields)
 
 DIM data_value: data_value = Request.ServerVariables("HTTP_X_DATA_VALUE")
 IF data_value<>"" THEN
@@ -263,10 +270,12 @@ End If
 DIM full_request: full_request=data_fields&"&"&command&"&"&data_predicate
 DIM file_location, file_name
 IF INSTR(content_type,"xml")>0 THEN
-    file_name=Hash("md5",full_request) &".xml"
+    file_name=Hash("md5",REPLACE(full_request,"ñ","")) &".xml"
+        'response.Clear
 ELSEIF INSTR(content_type,"javascript")>0 THEN
-    file_name=Hash("md5",full_request) &".js"
+    file_name=Hash("md5",REPLACE(full_request,"ñ","")) &".js"
 END IF
+
 'response.write "full_request: "&file_name: response.end
 DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&session("user_login")&"\"
 file_location=parent_folder&file_name
@@ -285,7 +294,7 @@ IF 1=0 and fso.FileExists(file_location) THEN
     Response.ContentType = "text/xml"
     Response.write "<!-- Desde cache: "&file_name&"-->"
     DIM xslFile, xslValues
-    xslFile=server.MapPath(".")&"\..\resources\normalize_values.xslt"
+    xslFile=server.MapPath(".")&"\normalize_values.xslt"
     Set xslValues=Server.CreateObject("Microsoft.XMLDOM")
     xslValues.async="false"
     xslValues.load(xslFile)
@@ -295,7 +304,7 @@ IF 1=0 and fso.FileExists(file_location) THEN
 END IF
 
 IF INSTR(sType,"T")<>0 THEN
-    data_fields="TOP 1000 "&data_fields&" "
+    'data_fields="TOP 1000 "&data_fields&" "
     IF data_predicate<>"" THEN
         data_predicate=" WHERE "&data_predicate
     END IF
@@ -490,11 +499,14 @@ END IF
 IF INSTR(sType,"P")<>0 THEN
     strSQL="EXEC "&command& data_parameters &"; "
     IF sOutputParams<>"" THEN 
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:response'), TYPE"
+        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:response'), TYPE"
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
-    strSQL="(SELECT "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 FOR XML PATH('x:r'), TYPE)"
-    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT "&strSQL&" FOR XML PATH('')"& root_node &", TYPE"
+    strSQL="(SELECT [@state:position]=ROW_NUMBER() OVER(ORDER BY (SELECT NULL)), [@state:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
+    IF namespaces<>"" THEN
+        namespaces = ", " & namespaces
+    END IF
+    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ) SELECT [@state:pageIndex]=@page_index, [@state:pageSize]=@page_size, "&strSQL&" FOR XML PATH('"&root_node&"'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     strSQL="SELECT "&command & data_predicate
 ELSE
@@ -554,7 +566,7 @@ DO
                         END IF
                     END IF
                     'oXMLFile.loadXML(oXMLFile.transformNode(xslValues))
-                    xslFile=server.MapPath(".")&"\..\resources\normalize_namespaces.xslt"
+                    xslFile=server.MapPath(".")&"\normalize_namespaces.xslt"
                     IF (fso.FileExists(xslFile)) THEN
                         Set xslDoc=Server.CreateObject("Microsoft.XMLDOM")
                         xslDoc.async="false"
