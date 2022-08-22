@@ -328,11 +328,11 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
         detect_missing_variables = FALSE
     END IF
 
+    IF request.querystring("Parameters")<>"" THEN
+        sParameters=request.querystring("Parameters")
+    END IF
     IF (detect_input_variables OR detect_output_variables) THEN
         sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
-        IF request.querystring("Parameters")<>"" THEN
-            sParameters=request.querystring("Parameters")
-        END IF
         command = sRoutineName
         IF detect_input_variables AND sParameters<>"" THEN
             sParameters=replaceMatch(sParameters,"\bDEFAULT\b","'$&'")
@@ -497,7 +497,7 @@ ELSE
 END IF 
 
 IF INSTR(sType,"P")<>0 THEN
-    strSQL="EXEC "&command& data_parameters &"; "
+    strSQL="EXEC "&command &"; "
     IF sOutputParams<>"" THEN 
         strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:response'), TYPE"
     END IF
