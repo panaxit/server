@@ -317,11 +317,11 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
 
     DIM detect_input_variables: detect_input_variables = EVAL(Request.ServerVariables("HTTP_X_DETECT_INPUT_VARIABLES"))
     IF detect_input_variables="" THEN
-        detect_input_variables = FALSE
+        detect_input_variables = TRUE
     END IF
     DIM detect_output_variables: detect_output_variables = EVAL(Request.ServerVariables("HTTP_X_DETECT_OUTPUT_VARIABLES"))
     IF detect_output_variables="" THEN
-        detect_output_variables = FALSE
+        detect_output_variables = TRUE
     END IF
     DIM detect_missing_variables: detect_missing_variables = EVAL(Request.ServerVariables("HTTP_X_DETECT_MISSING_VARIABLES"))
     IF detect_missing_variables="" THEN
@@ -332,6 +332,8 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
         sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
         IF request.querystring("Parameters")<>"" THEN
             sParameters=request.querystring("Parameters")
+        ELSE
+            sParameters = ""
         END IF
         command = sRoutineName
         IF detect_input_variables AND sParameters<>"" THEN
@@ -355,7 +357,6 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
             IF rsParameters.fields.Count>0 AND NOT(rsParameters.BOF AND rsParameters.EOF) THEN
                 xmlParameters.LoadXML(rsParameters(0))
             END IF
-            sParameters = ""
         END IF
 
         'DIM sParameter, ns
