@@ -98,11 +98,10 @@ Sub manageError(Err)
     Response.ContentType = "application/json" %>
 //<%= strSQL  %>
 <%  ELSE 
-    Response.ContentType = "application/javascript" %>
-    this.status='exception';
-    this.message="<%= REPLACE(message, """", "\""") %>";
+    Response.ContentType = "application/json" %>
+    {"message":"<%= REPLACE(message, """", "\""") %>"
     <%  IF 1=1 OR session("debug")=TRUE THEN %>
-    this.source="<%= REPLACE(strSQL, """", "\""") %>";
+    , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
     <%  END IF 
     END IF 
 End Sub
@@ -114,8 +113,8 @@ oCn.ConnectionTimeout = 5
 oCn.CommandTimeout = 0
 oCn.Open StrCnn
 IF Err.Number<>0 THEN
-    Response.ContentType = "application/javascript"
-    Response.CharSet = "ISO-8859-1"
+    Response.ContentType = "application/json"
+    Response.CharSet = "UTF-8"
     Response.Clear()
 
 	ErrorDesc=RegEx.Replace(Err.Description, "")
@@ -126,11 +125,10 @@ IF Err.Number<>0 THEN
     ELSE
         Response.Status = "401 Unauthorized"
     END IF
-    %>
-    this.status='exception';
-    this.statusType='unauthorized';
-    this.message=`<%= REPLACE(ErrorDesc, "`", "\`") %>`;
-    <%
+    %>{"message":"<%= REPLACE(message, """", "\""") %>"
+    <%  IF 1=1 OR session("debug")=TRUE THEN %>
+    , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
+    <%  END IF 
     response.end
 END IF
 oCn.Execute("SET LANGUAGE SPANISH")
