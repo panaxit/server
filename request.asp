@@ -329,11 +329,11 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
         detect_missing_variables = FALSE
     END IF
 
+    IF request.querystring("Parameters")<>"" THEN
+        sParameters=request.querystring("Parameters")
+    END IF
     IF (detect_input_variables OR detect_output_variables) THEN
         'sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
-        IF request.querystring("Parameters")<>"" THEN
-            sParameters=request.querystring("Parameters")
-        END IF
         command = sRoutineName
         IF detect_input_variables AND sParameters<>"" THEN
             sParameters=replaceMatch(sParameters,"\bDEFAULT\b","'$&'")
@@ -462,20 +462,19 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
 		        NEXT
 	        END IF
         END IF
-    ELSE
-        FOR EACH sParameter IN request.querystring
-	        IF testMatch(sParameter, "^\@") THEN
-                IF sParameters<>"" THEN
-                    sParameters=sParameters&", "
-                END IF
-		        sParamValue=request.querystring(sParameter)
-		        bParameterString=NOT(sParamValue="" OR sParamValue="NULL" OR sParamValue="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
-		        IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
-		        IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
-                sParameters=sParameters & sParameter&"="&sParamValue
-	        END IF
-        NEXT
     END IF
+    FOR EACH sParameter IN request.querystring
+	    IF testMatch(sParameter, "^\@") THEN
+            IF sParameters<>"" THEN
+                sParameters=sParameters&", "
+            END IF
+		    sParamValue=request.querystring(sParameter)
+		    bParameterString=NOT(sParamValue="" OR sParamValue="NULL" OR sParamValue="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
+		    IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
+		    IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
+            sParameters=sParameters & sParameter&"="&sParamValue
+	    END IF
+    NEXT
 
     IF INSTR(sType,"F")<>0 THEN
         command = command & "(" & TRIM(sParameters) &")"
