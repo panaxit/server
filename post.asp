@@ -96,7 +96,7 @@ END IF
 DIM oConfiguration:	set oConfiguration = Server.CreateObject("MSXML2.DOMDocument"): 
 oConfiguration.Async = false: 
 oConfiguration.setProperty "SelectionLanguage", "XPath"
-oConfiguration.Load(Server.MapPath("../../config/system.config"))
+oConfiguration.Load(Server.MapPath("../../.config/system.config"))
 
 IF NOT(Session("AccessGranted")) THEN 
     Response.ContentType = "application/javascript"
@@ -178,11 +178,13 @@ DIM strSQL
 'strSQL="SET NOCOUNT ON; DECLARE @success BIT; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(URLDecode(xmlDoc.selectSingleNode("//x:submit/*").xml), "&", "&amp;"), "'", "''")&"', @source='"&REPLACE(REPLACE(URLDecode(xmlDoc.selectSingleNode("//x:source/*").xml), "&", "&amp;"), "'", "''")&"', @user_id="& session("user_id") &", @exec=1, @success=@success;-- SELECT @success"
 
 'base_folder="D:\Dropbox (Personal)\Proyectos\Petro\FilesRepository"
-DIM xRepository: SET xRepository=oConfiguration.documentElement.selectSingleNode("/configuration/Repositories/Folder[@Id='upload']")
-IF NOT (xRepository IS NOTHING) THEN
-    base_folder=xRepository.getAttribute("Location")
-ELSE
-    base_folder=server.MapPath("../FilesRepository")
+DIM xRepository: 
+base_folder=server.MapPath("../FilesRepository")
+IF (NOT(oConfiguration.documentElement) IS NOTHING) THEN
+    SET xRepository=oConfiguration.documentElement.selectSingleNode("/configuration/Repositories/Folder[@Id='upload']")
+    IF NOT (xRepository IS NOTHING) THEN
+        base_folder=xRepository.getAttribute("Location")
+    END IF
 END IF
 
 user_id = session("user_id")
