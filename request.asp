@@ -241,7 +241,7 @@ DIM sParameters
 'sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
 If Request.TotalBytes > 0 Then
     DIM payload_parameter_name: payload_parameter_name=Request.ServerVariables("HTTP_X_PAYLOAD_PARAMETER_NAME")
-    IF INSTR(Request.ServerVariables("HTTP_CONTENT_TYPE"),"xml") THEN
+    IF INSTR(Request.ServerVariables("HTTP_CONTENT_TYPE"),"xml")>0 THEN
         DIM xPayload
         Set xPayload=Server.CreateObject("Microsoft.XMLDOM")
         xPayload.async="false"
@@ -251,7 +251,7 @@ If Request.TotalBytes > 0 Then
     ELSE
         payload=BytesToStr(Request.BinaryRead(Request.TotalBytes))
     END IF
-    IF INSTR(sType,"P")<>0 OR INSTR(sType,"F") THEN
+    IF INSTR(sType,"P")<>0 OR INSTR(sType,"F")<>0 THEN
         IF (payload_parameter_name<>"") THEN
             payload_parameter_name=" name="""&payload_parameter_name&""""
         END IF
@@ -310,7 +310,7 @@ IF INSTR(sType,"T")<>0 THEN
 END IF 
 
 
-IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
+IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
     DIM sParamValue, bParameterString', aParameters
     'Set aParameters=Server.CreateObject("Scripting.Dictionary")
 
@@ -426,7 +426,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
                     END IF
 
                     oNode.text = sParameterValue
-                    IF NOT(INSTR(oNode.getAttribute("dataType"),"int") OR INSTR(oNode.getAttribute("dataType"),"bit")) AND NOT(UCASE(sParameterValue)="NULL" OR sParameterValue="DEFAULT" OR getMatch(sParameterValue, "^'([\S\s]*)'$|^\(([\S\s]*)\)$").count>=1) THEN
+                    IF NOT(INSTR(oNode.getAttribute("dataType"),"int")>0 OR INSTR(oNode.getAttribute("dataType"),"bit"))>0 AND NOT(UCASE(sParameterValue)="NULL" OR sParameterValue="DEFAULT" OR getMatch(sParameterValue, "^'([\S\s]*)'$|^\(([\S\s]*)\)$").count>=1) THEN
                         sParameterValue = "'"&REPLACE(sParameterValue,"'","''")&"'"
                     END IF
                     IF INSTR(oNode.getAttribute("dataType"),"date")<>0 THEN
@@ -462,7 +462,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")) THEN
         END IF
     END IF
     FOR EACH sParameter IN request.querystring
-	    IF testMatch(sParameter, "^\@") THEN
+	    IF INSTR(sType,"F")=0 AND testMatch(sParameter, "^\@") THEN
             IF sParameters<>"" THEN
                 sParameters=sParameters&", "
             END IF
@@ -505,7 +505,11 @@ ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
     END IF
     strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ) SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, "&strSQL&" FOR XML PATH('"&root_node&"'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
-    strSQL="SELECT "&command & data_predicate
+    IF INSTR(content_type,"xml")>0 THEN
+        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:response'), TYPE"
+    ELSE
+        strSQL="SELECT "&command & data_predicate
+    END IF
 ELSE
     strSQL="SELECT "&data_fields&" FROM "&command & " AS Result "&data_predicate
 END IF
@@ -548,8 +552,8 @@ DO
         manageError(Err)
     ELSEIF recordset.fields.Count>0 THEN 
         IF NOT (recordset.BOF and recordset.EOF) THEN %>
-<%      DIM oField, sDataType, sValue %>
-<%      IF INSTR(content_type,"xml")>0 THEN
+<%          DIM oField, sDataType, sValue %>
+<%          IF INSTR(content_type,"xml")>0 THEN
                     Response.CodePage = 65001
                     Response.CharSet = "UTF-8"
                     response.ContentType = "text/xml" 
@@ -578,12 +582,10 @@ DO
                     END IF
                     response.write oXMLFile.xml
             ELSE %>
-                this.contentType = '<%= content_type %>'
-	            this.status='success'
-	            this.recordSet=new Array()
-        <%	        DO UNTIL recordset.EOF %>
-                var record = {}
-            <%      FOR EACH oField IN recordset.fields 
+                [<% dim f: f=0: DO UNTIL recordset.EOF 
+                    f = f + 1 %>
+                {"#":<%= f %>
+<% FOR EACH oField IN recordset.fields 
                         IF oField.name="" THEN 
                         END IF 
                         IF TypeName(oField)="Field" THEN 
@@ -591,11 +593,11 @@ DO
                         ELSE 
                             sDataType=TypeName(oField): sValue=oField 
                         END IF %>
-		                    record["<%= oField.name %>"]=<% SELECT CASE UCASE(sDataType): CASE "NULL": %>null<% CASE "BOOLEAN": %><% IF sValue THEN %>true<% ELSE %>false<% END IF %><% CASE ELSE %>"<%= RTRIM(REPLACE(replaceMatch(sValue, "["&chr(13)&""&chr(10)&""&vbcr&""&vbcrlf&"]", ""&vbcrlf),"""", """")) %>"<% END SELECT %>; 
+		                    , "<%= oField.name %>":<% SELECT CASE UCASE(sDataType): CASE "NULL": %>null<% CASE "BOOLEAN": %><% IF sValue THEN %>true<% ELSE %>false<% END IF %><% CASE ELSE %>"<%= RTRIM(REPLACE(replaceMatch(sValue, "["&chr(13)&""&chr(10)&""&vbcr&""&vbcrlf&"]", ""&vbcrlf),"""", """")) %>"<% END SELECT %> 
 	                    <% NEXT %>
-                    this.recordSet.push(record)
+                    }
                     <% recordset.MoveNext
- 	                LOOP %>
+ 	                LOOP %>]
 <% recordset.Close 
              END IF 
         ELSE 
