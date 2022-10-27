@@ -217,6 +217,10 @@ IF data_fields="" THEN
 END IF
 
 'PREDICATES (FOR TABLES AN FUNCTION TABLES)
+DIM order_by: order_by = Request.ServerVariables("HTTP_X_ORDER_BY")
+IF (order_by="") THEN
+    order_by="NULL"
+END IF
 DIM data_predicate: data_predicate = Request.ServerVariables("HTTP_X_DATA_PREDICATE")
 IF INSTR(sType,"T")<>0 THEN
     IF data_predicate="" THEN
@@ -324,7 +328,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
     END IF
     DIM detect_missing_variables: detect_missing_variables = EVAL(Request.ServerVariables("HTTP_X_DETECT_MISSING_VARIABLES"))
     IF detect_missing_variables="" THEN
-        detect_missing_variables = FALSE
+        detect_missing_variables = TRUE
     END IF
 
     IF request.querystring("Parameters")<>"" THEN
@@ -425,6 +429,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                         sParameterValue = "NULL"
                     END IF
 
+                    oNode.setAttribute "value", ""
                     oNode.text = sParameterValue
                     IF NOT(INSTR(oNode.getAttribute("dataType"),"int")>0 OR INSTR(oNode.getAttribute("dataType"),"bit"))>0 AND NOT(UCASE(sParameterValue)="NULL" OR sParameterValue="DEFAULT" OR getMatch(sParameterValue, "^'([\S\s]*)'$|^\(([\S\s]*)\)$").count>=1) THEN
                         sParameterValue = "'"&REPLACE(sParameterValue,"'","''")&"'"
@@ -499,7 +504,7 @@ IF INSTR(sType,"P")<>0 THEN
         strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:response'), TYPE"
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
-    strSQL="(SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY (SELECT NULL)), [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
+    strSQL="(SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY (SELECT "&order_by&")), [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
     IF namespaces<>"" THEN
         namespaces = ", " & namespaces
     END IF
