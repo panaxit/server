@@ -125,10 +125,12 @@ IF Err.Number<>0 THEN
     ELSE
         Response.Status = "401 Unauthorized"
     END IF
-    %>{"message":"<%= REPLACE(message, """", "\""") %>"
+    IF ErrorDesc<>"" THEN
+    %>{"message":"<%= REPLACE(ErrorDesc, """", "\""") %>"
     <%  IF 1=1 OR session("debug")=TRUE THEN %>
     , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
     <%  END IF 
+    END IF
     response.end
 END IF
 oCn.Execute("SET LANGUAGE SPANISH")
