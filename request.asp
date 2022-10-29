@@ -247,6 +247,7 @@ DIM sParameters
 'sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
 If Request.TotalBytes > 0 Then
     DIM payload_parameter_name: payload_parameter_name=Request.ServerVariables("HTTP_X_PAYLOAD_PARAMETER_NAME")
+    DIM dataType: dataType="string"
     IF INSTR(Request.ServerVariables("HTTP_CONTENT_TYPE"),"xml")>0 THEN
         DIM xPayload
         Set xPayload=Server.CreateObject("Microsoft.XMLDOM")
@@ -254,6 +255,7 @@ If Request.TotalBytes > 0 Then
         xPayload.load(request)
         xPayload.selectNodes("//comment()").removeAll()
         payload = URLDecode(xPayload.xml)
+        dataType="xml"
     ELSE
         payload=BytesToStr(Request.BinaryRead(Request.TotalBytes))
     END IF
@@ -261,7 +263,7 @@ If Request.TotalBytes > 0 Then
         IF (payload_parameter_name<>"") THEN
             payload_parameter_name=" name="""&payload_parameter_name&""""
         END IF
-        xmlParameters.LoadXML("<parameters><param"&payload_parameter_name&"><![CDATA["&payload&"]]></param></parameters>")
+        xmlParameters.LoadXML("<parameters><param"&payload_parameter_name&" dataType="""&dataType&"""><![CDATA["&payload&"]]></param></parameters>")
     ELSEIF INSTR(sType,"T")<>0 THEN
         IF (payload_parameter_name<>"") THEN
            data_predicate = data_predicate & payload_parameter_name&"='"&REPLACE(payload,"'","''")&"'"
@@ -399,6 +401,9 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         IF NOT(rsParameters.BOF AND rsParameters.EOF) AND rsParameters.fields.Count>0 THEN
 	        xmlOutputParameters.LoadXML(rsParameters(0))
 	        i=0
+            IF xmlOutputParameters.documentElement IS NOTHING AND NOT(xmlParameters.documentElement IS NOTHING) THEN
+                xmlOutputParameters.LoadXML(xmlParameters.xml)
+	        END IF
 	        IF NOT(xmlOutputParameters.documentElement IS NOTHING) THEN
 		        DIM sParamsDeclaration
 		        DIM sParamsDefinition
@@ -418,7 +423,9 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                         sParameterValue = request.querystring(sParameterName)
                     ELSEIF NOT(IsEmpty(xParameter)) THEN
                         sParameterValue = xParameter.Text
-                        sParameterType = xParameter.getAttribute("xsi:type")
+                        IF (xParameter.getAttribute("xsi:type")) THEN
+                            sParameterType = xParameter.getAttribute("xsi:type")
+                        END IF
                     ELSE
                         sParameterValue = "DEFAULT"
                     END IF                
@@ -433,7 +440,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
 
                     oNode.setAttribute "value", ""
                     oNode.text = sParameterValue
-                    IF NOT(INSTR(oNode.getAttribute("dataType"),"int")>0 OR INSTR(oNode.getAttribute("dataType"),"bit"))>0 AND NOT(UCASE(sParameterValue)="NULL" OR sParameterValue="DEFAULT" OR getMatch(sParameterValue, "^'([\S\s]*)'$|^\(([\S\s]*)\)$").count>=1) THEN
+                    IF NOT(INSTR(oNode.getAttribute("dataType"),"int")>0 OR INSTR(oNode.getAttribute("dataType"),"bit")>0) AND NOT(UCASE(sParameterValue)="NULL" OR sParameterValue="DEFAULT" OR getMatch(sParameterValue, "^'([\S\s]*)'$|^\(([\S\s]*)\)$").count>=1) THEN
                         sParameterValue = "'"&REPLACE(sParameterValue,"'","''")&"'"
                     END IF
                     IF INSTR(oNode.getAttribute("dataType"),"date")<>0 THEN
@@ -444,6 +451,9 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                     IF data_type="[decimal]" THEN
                         data_type="[decimal](10,5)"
                         sParameterValue = "NULL"
+                    END IF
+                    IF ISNULL(data_type) OR sParameterType="string" THEN
+                        data_type = "nvarchar(MAX)"
                     END IF
     			    sParamsDeclaration=sParamsDeclaration& "DECLARE "&oNode.getAttribute("name")&" "&data_type&"; "
                     IF oNode.getAttribute("isOutput")=0 AND sParameterValue="DEFAULT" THEN
@@ -465,7 +475,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                         sOutputParams=sOutputParams& "["&REPLACE(oNode.getAttribute("name"), "@", "")&"]=" & oNode.getAttribute("name")
                     END IF
 		        NEXT
-	        END IF
+            END IF
         END IF
     END IF
     FOR EACH sParameter IN request.querystring
