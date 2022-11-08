@@ -189,7 +189,7 @@ ELSE
     Response.End
 END IF
 'response.write "sRoutineName: "&sRoutineName: response.end
-IF INSTR(sType,"SN")<>0 THEN
+IF INSTR(sType,"SN")<>0 OR INSTR(sType,"V")<>0 THEN
     sType = "T"
 END IF    
 
