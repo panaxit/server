@@ -2147,6 +2147,8 @@ Function login()
 	    sConnectionId=request.form("Connection_id")
     ELSEIF Application("Connection_id")<>"" THEN
 	    sConnectionId=Application("Connection_id")
+	ELSE
+		sConnectionId=request.serverVariables("HTTP_HOST")
     END IF
 
     IF oConfiguration.documentElement IS NOTHING THEN
