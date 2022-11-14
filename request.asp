@@ -189,7 +189,7 @@ ELSE
     Response.End
 END IF
 'response.write "sRoutineName: "&sRoutineName: response.end
-IF INSTR(sType,"SN")<>0 OR INSTR(sType,"V")<>0 THEN
+IF INSTR(sType,"V")<>0 THEN
     sType = "T"
 END IF    
 
@@ -272,6 +272,9 @@ If Request.TotalBytes > 0 Then
         END IF
     END IF
 End If
+IF xmlParameters.documentElement IS NOTHING THEN
+    xmlParameters.LoadXML("<parameters/>")
+END IF
 
 'CACHÉ
 DIM full_request: full_request=data_fields&"&"&command&"&"&data_predicate
@@ -367,15 +370,6 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         'DIM sParameter, ns
 
         i=0
-   	    'IF NOT(xmlParameters.documentElement IS NOTHING) THEN
-		'    FOR EACH oNode IN xmlParameters.documentElement.selectNodes("/*/*")
-        '        IF (oNode.getAttribute("name")<>"") THEN
-		'	        i=i+1
-        '            aParameters.Add oNode.getAttribute("name"), oNode.Text
-        '        END IF
-		'    NEXT
-        'END IF
-        'response.write xmlParameters.xml: response.end
 
         DIM rsParameters
         DIM missingParameters
@@ -401,95 +395,111 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         IF NOT(rsParameters.BOF AND rsParameters.EOF) AND rsParameters.fields.Count>0 THEN
 	        xmlOutputParameters.LoadXML(rsParameters(0))
 	        i=0
-            IF xmlOutputParameters.documentElement IS NOTHING AND NOT(xmlParameters.documentElement IS NOTHING) THEN
+            IF xmlOutputParameters.documentElement IS NOTHING AND NOT(xmlParameters.selectSingleNode("parameters/*") IS NOTHING) THEN
                 xmlOutputParameters.LoadXML(xmlParameters.xml)
 	        END IF
-	        IF NOT(xmlOutputParameters.documentElement IS NOTHING) THEN
-		        DIM sParamsDeclaration
-		        DIM sParamsDefinition
-                DIM xParameter, sParameterName, oOtherNodes
-                DIM sParameterType
-		        FOR EACH oNode IN xmlOutputParameters.documentElement.selectNodes("/*/*")
-                    IF i>0 THEN
-                        sParameters=sParameters&", "
+        END IF
+        FOR EACH sParameter IN request.querystring
+	        IF testMatch(sParameter, "^\@") THEN
+		        sParamValue=request.querystring(sParameter)
+		        bParameterString=NOT(sParamValue="" OR UCASE(sParamValue)="NULL" OR UCASE(sParamValue)="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
+		        IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
+		        IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
+                set param = xmlParameters.createElement("param")
+                param.setAttribute "name", sParameter
+                'param.setAttribute "value", sParamValue
+                param.Text = sParamValue
+                xmlParameters.selectSingleNode("parameters").appendChild(param)
+	        END IF
+        NEXT
+
+	    IF NOT(xmlOutputParameters.documentElement IS NOTHING) THEN
+		    DIM sParamsDeclaration
+		    DIM sParamsDefinition
+            DIM xParameter, sParameterName, oOtherNodes
+            DIM sParameterType
+		    FOR EACH oNode IN xmlOutputParameters.documentElement.selectNodes("/*/*")
+                IF i>0 THEN
+                    sParameters=sParameters&", "
+                END IF
+   			    i=i+1
+                sParameterName = oNode.getAttribute("name")
+                sParameterValue = oNode.text
+                sParameterType = "string"
+                set xParameter=xmlParameters.documentElement.selectSingleNode("/*/*[not(@name)][@position='"&i&"']|/*/*[@name='"&sParameterName&"']")
+                SET oOtherNodes = xmlParameters.documentElement.selectNodes("/*/*[@position>"&i&"]")
+                IF request.querystring(sParameterName).count > 0 THEN
+                    sParameterValue = request.querystring(sParameterName)
+                ELSEIF NOT(IsEmpty(xParameter)) THEN
+                    sParameterValue = xParameter.Text
+                    IF (xParameter.getAttribute("xsi:type")) THEN
+                        sParameterType = xParameter.getAttribute("xsi:type")
                     END IF
-   			        i=i+1
-                    sParameterName = oNode.getAttribute("name")
-                    sParameterValue = oNode.text
-                    sParameterType = "string"
-                    set xParameter=xmlParameters.documentElement.selectSingleNode("/*/*[not(@name)][@position='"&i&"']|/*/*[@name='"&sParameterName&"']")
-                    SET oOtherNodes = xmlParameters.documentElement.selectNodes("/*/*[@position>"&i&"]")
-                    IF request.querystring(sParameterName).count > 0 THEN
-                        sParameterValue = request.querystring(sParameterName)
-                    ELSEIF NOT(IsEmpty(xParameter)) THEN
-                        sParameterValue = xParameter.Text
-                        IF (xParameter.getAttribute("xsi:type")) THEN
-                            sParameterType = xParameter.getAttribute("xsi:type")
-                        END IF
-                    ELSE
-                        sParameterValue = "DEFAULT"
-                    END IF                
+                ELSEIF INSTR(sParameterName,"@@")=1 AND SESSION(REPLACE("^"&sParameterName,"^@@","")) > 0 THEN 'Los parámetros con doble arroba pueden mapear automáticamente a variables de sesión.
+                    sParameterValue = SESSION(REPLACE(sParameterName,"@@",""))
+                ELSE
+                    sParameterValue = "DEFAULT"
+                END IF                
                     
-                    IF oNode.getAttribute("isRequired")=1 AND oNode.getAttribute("isOutput")=0 AND ((IsEmpty(xParameter) OR sParameterType<>"string") AND sParameterValue="" OR sParameterValue="DEFAULT") THEN
-                        missingParameters = TRUE
-                        sParameterValue=""
-                        oNode.setAttribute "missing", "true"
-                    ELSEIF sParameterValue="" AND IsEmpty(xParameter) AND NOT(IsEmpty(oOtherNodes)) THEN
-                        sParameterValue = "NULL"
-                    END IF
+                IF oNode.getAttribute("isRequired")=1 AND oNode.getAttribute("isOutput")=0 AND ((IsEmpty(xParameter) OR sParameterType<>"string") AND sParameterValue="" OR sParameterValue="DEFAULT") THEN
+                    missingParameters = TRUE
+                    sParameterValue=""
+                    oNode.setAttribute "missing", "true"
+                ELSEIF sParameterValue="" AND IsEmpty(xParameter) AND NOT(IsEmpty(oOtherNodes)) THEN
+                    sParameterValue = "NULL"
+                END IF
 
-                    oNode.setAttribute "value", ""
-                    oNode.text = sParameterValue
-                    IF NOT(INSTR(oNode.getAttribute("dataType"),"int")>0 OR INSTR(oNode.getAttribute("dataType"),"bit")>0) AND NOT(UCASE(sParameterValue)="NULL" OR sParameterValue="DEFAULT" OR getMatch(sParameterValue, "^'([\S\s]*)'$|^\(([\S\s]*)\)$").count>=1) THEN
-                        sParameterValue = "'"&REPLACE(sParameterValue,"'","''")&"'"
-                    END IF
-                    IF INSTR(oNode.getAttribute("dataType"),"date")<>0 THEN
-                        sParameterValue = replaceMatch(sParameterValue,"^(\d+)-(\d+)-(\d+)$","$1$2$3")
-                    END IF
+                oNode.setAttribute "value", ""
+                oNode.text = sParameterValue
+                IF NOT(INSTR(oNode.getAttribute("dataType"),"int")>0 OR INSTR(oNode.getAttribute("dataType"),"bit")>0) AND NOT(UCASE(sParameterValue)="NULL" OR sParameterValue="DEFAULT" OR getMatch(sParameterValue, "^'([\S\s]*)'$|^\(([\S\s]*)\)$").count>=1) THEN
+                    sParameterValue = "'"&REPLACE(sParameterValue,"'","''")&"'"
+                END IF
+                IF INSTR(oNode.getAttribute("dataType"),"date")<>0 THEN
+                    sParameterValue = replaceMatch(sParameterValue,"^(\d+)-(\d+)-(\d+)$","$1$2$3")
+                END IF
 
-                    data_type=oNode.getAttribute("dataType")
-                    IF data_type="[decimal]" THEN
-                        data_type="[decimal](10,5)"
-                        sParameterValue = "NULL"
+                data_type=oNode.getAttribute("dataType")
+                IF data_type="[decimal]" THEN
+                    data_type="[decimal](10,5)"
+                    sParameterValue = "NULL"
+                END IF
+                IF ISNULL(data_type) OR sParameterType="string" THEN
+                    data_type = "nvarchar(MAX)"
+                END IF
+    			sParamsDeclaration=sParamsDeclaration& "DECLARE "&oNode.getAttribute("name")&" "&data_type&"; "
+                IF oNode.getAttribute("isOutput")=0 AND sParameterValue="DEFAULT" THEN
+                    sParameters=sParameters&"DEFAULT"
+                ELSE
+                    IF sParameterValue="DEFAULT" THEN
+                        sParameterValue="NULL" 'Revisar si se debe iniciarlizar con el valor del default
                     END IF
-                    IF ISNULL(data_type) OR sParameterType="string" THEN
-                        data_type = "nvarchar(MAX)"
-                    END IF
-    			    sParamsDeclaration=sParamsDeclaration& "DECLARE "&oNode.getAttribute("name")&" "&data_type&"; "
-                    IF oNode.getAttribute("isOutput")=0 AND sParameterValue="DEFAULT" THEN
-                        sParameters=sParameters&"DEFAULT"
-                    ELSE
-                        IF sParameterValue="DEFAULT" THEN
-                            sParameterValue="NULL" 'Revisar si se debe iniciarlizar con el valor del default
-                        END IF
-                        sParamsDefinition=sParamsDefinition& "SELECT "&oNode.getAttribute("name")&"="&sParameterValue&";" 
-                        'IF INSTR(sType,"P")<>0 THEN
-                        '    sParameters=sParameters&sParameterName&"="&sParameterName
-                        'ELSE
-                            sParameters=sParameters&sParameterName
-                        'END IF
-                    END IF
-                    IF oNode.getAttribute("isOutput")=1 THEN
-                        sParameters=sParameters&" OUT"
-			            IF sOutputParams<>"" THEN sOutputParams=sOutputParams&", " END IF
-                        sOutputParams=sOutputParams& "["&REPLACE(oNode.getAttribute("name"), "@", "")&"]=" & oNode.getAttribute("name")
-                    END IF
-		        NEXT
-            END IF
+                    sParamsDefinition=sParamsDefinition& "SELECT "&oNode.getAttribute("name")&"="&sParameterValue&";" 
+                    'IF INSTR(sType,"P")<>0 THEN
+                    '    sParameters=sParameters&sParameterName&"="&sParameterName
+                    'ELSE
+                        sParameters=sParameters&sParameterName
+                    'END IF
+                END IF
+                IF oNode.getAttribute("isOutput")=1 THEN
+                    sParameters=sParameters&" OUT"
+			        IF sOutputParams<>"" THEN sOutputParams=sOutputParams&", " END IF
+                    sOutputParams=sOutputParams& "["&REPLACE(oNode.getAttribute("name"), "@", "")&"]=" & oNode.getAttribute("name")
+                END IF
+		    NEXT
         END IF
     END IF
-    FOR EACH sParameter IN request.querystring
-	    IF INSTR(sType,"F")=0 AND testMatch(sParameter, "^\@") THEN
-            IF sParameters<>"" THEN
-                sParameters=sParameters&", "
-            END IF
-		    sParamValue=request.querystring(sParameter)
-		    bParameterString=NOT(sParamValue="" OR sParamValue="NULL" OR sParamValue="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
-		    IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
-		    IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
-            sParameters=sParameters & sParameter&"="&sParamValue
-	    END IF
-    NEXT
+'    FOR EACH sParameter IN request.querystring
+'	    IF INSTR(sType,"F")=0 AND testMatch(sParameter, "^\@") THEN
+'            IF sParameters<>"" THEN
+'                sParameters=sParameters&", "
+'            END IF
+'		    sParamValue=request.querystring(sParameter)
+'		    bParameterString=NOT(sParamValue="" OR sParamValue="NULL" OR sParamValue="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
+'		    IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
+'		    IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
+'            sParameters=sParameters & sParameter&"="&sParamValue
+'	    END IF
+'    NEXT
 
     IF INSTR(sType,"F")<>0 THEN
         command = command & "(" & TRIM(sParameters) &")"

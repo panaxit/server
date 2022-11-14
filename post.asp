@@ -67,11 +67,10 @@ Sub manageError(Err)
 <%  ELSEIF INSTR(Response.ContentType,"json")>0 THEN %>
 //<%= strSQL  %>
 <%  ELSE 
-        Response.ContentType = "application/javascript" %>
-        this.status='exception';
-        this.message="<%= REPLACE(message, """", "\""") %>";<%  
-        IF 1=1 OR session("debug")=TRUE THEN %>
-            this.source="<%= REPLACE(strSQL, """", "\""") %>";
+        Response.ContentType = "application/json" %>
+    {"message":"<%= REPLACE(message, """", "\""") %>"
+    <%  IF 1=1 OR session("debug")=TRUE THEN %>
+    , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
     <%  END IF 
     END IF 
 End Sub
@@ -99,7 +98,7 @@ oConfiguration.setProperty "SelectionLanguage", "XPath"
 oConfiguration.Load(Server.MapPath("../../.config/system.config"))
 
 IF NOT(Session("AccessGranted")) THEN 
-    Response.ContentType = "application/javascript"
+    Response.ContentType = "application/javascript" 
     Response.CharSet = "ISO-8859-1"
     Response.Status = "401 Unauthorized"%>
     this.status='unauthorized';
