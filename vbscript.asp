@@ -93,7 +93,7 @@ Function Hash(HashType, Target)
     Dim PlainText
 
     If IsArray(Target) = True Then PlainText = Target(0) Else PlainText = Target End If
-
+	PlainText = REPLACE(encodeURL(PlainText),"%","")
     With CreateObject("ADODB.Stream")
     .Open
     .CharSet = "Windows-1252"
