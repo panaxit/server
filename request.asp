@@ -445,7 +445,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                     missingParameters = TRUE
                     sParameterValue=""
                     oNode.setAttribute "missing", "true"
-                ELSEIF sParameterValue="" AND IsEmpty(xParameter) AND NOT(IsEmpty(oOtherNodes)) THEN
+                ELSEIF sParameterValue="" AND (IsEmpty(xParameter) OR xParameter IS NOTHING) AND NOT(IsEmpty(oOtherNodes)) THEN
                     sParameterValue = "NULL"
                 END IF
 
