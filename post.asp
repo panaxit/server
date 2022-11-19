@@ -98,12 +98,16 @@ oConfiguration.setProperty "SelectionLanguage", "XPath"
 oConfiguration.Load(Server.MapPath("../../.config/system.config"))
 
 IF NOT(Session("AccessGranted")) THEN 
-    Response.ContentType = "application/javascript" 
+    Response.ContentType = "application/json" 
     Response.CharSet = "ISO-8859-1"
-    Response.Status = "401 Unauthorized"%>
-    this.status='unauthorized';
-    this.message="<%= REPLACE(REPLACE(ErrorDesc, "[Microsoft][ODBC SQL Server Driver][SQL Server]", ""), """", "\""") %>";
-    <%
+    Response.Status = "401 Unauthorized"
+	ErrorDesc=Err.Description
+    IF ErrorDesc<>"" THEN
+        %>{"message":"<%= REPLACE(ErrorDesc, """", "\""") %>"
+        <%  IF 1=1 OR session("debug")=TRUE THEN %>
+        , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
+        <%  END IF 
+    END IF
     response.end
 END IF
 DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
@@ -113,11 +117,16 @@ oCn.CommandTimeout = 0
 oCn.Open StrCnn
 IF Err.Number<>0 THEN
     Response.Clear()
+    Response.ContentType = "application/json" 
+    Response.CharSet = "ISO-8859-1"
     Response.Status = "401 Unauthorized"
 	ErrorDesc=Err.Description
-    %>
-    this.status='unauthorized';
-    this.message="<%= REPLACE(REPLACE(ErrorDesc, "[Microsoft][ODBC SQL Server Driver][SQL Server]", ""), """", "\""") %>";<%
+    IF ErrorDesc<>"" THEN
+        %>{"message":"<%= REPLACE(ErrorDesc, """", "\""") %>"
+        <%  IF 1=1 OR session("debug")=TRUE THEN %>
+        , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
+        <%  END IF 
+    END IF
     response.end
 END IF
 oCn.Execute("SET LANGUAGE SPANISH")
