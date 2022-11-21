@@ -199,7 +199,7 @@ user_id = session("user_id")
 if user_id = "" or ISNULL(user_id) = TRUE then
     user_id = "-1"
 end if
-strSQL="SET NOCOUNT ON; DECLARE @success BIT, @transaction_id INT, @response XML; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:submit/*").xml, "&", "&amp;"), "'", "''"),"C:\fakepath",base_folder)&"', @source='"&REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:source/*").xml, "&", "&amp;"), "'", "''")&"', @user_id="& user_id &", @exec=1, @success=@success OUTPUT, @transaction_id=@transaction_id OUTPUT, @response=@response OUTPUT; SELECT success=@success, transaction_id=@transaction_id, @response FOR XML PATH('response'), type"
+strSQL="SET NOCOUNT ON; DECLARE @success BIT, @transaction_id CHAR(36), @response XML; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:submit/*").xml, "&", "&amp;"), "'", "''"),"C:\fakepath",base_folder)&"', @source='"&REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:source/*").xml, "&", "&amp;"), "'", "''")&"', @user_id="& user_id &", @exec=1, @success=@success OUTPUT, @transaction_id=@transaction_id OUTPUT, @response=@response OUTPUT; SELECT success=@success, transaction_id=@transaction_id, @response FOR XML PATH('response'), type"
 
 strSQL="BEGIN TRY "&strSQL&" END TRY BEGIN CATCH DECLARE @Message NVARCHAR(MAX); SELECT @Message=ERROR_MESSAGE(); EXEC [$Table].[getCustomMessage] @Message=@Message, @Exec=1; END CATCH"
 
