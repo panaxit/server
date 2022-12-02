@@ -235,7 +235,6 @@ IF INSTR(sType,"T")<>0 THEN
         data_predicate = request.querystring("filters")
     END IF
 END IF
-
 DIM payload
 set xmlParameters = Server.CreateObject("Microsoft.XMLDOM"): 
 xmlParameters.Async = false: 
@@ -338,9 +337,9 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         detect_missing_variables = TRUE
     END IF
 
-    IF request.querystring("Parameters")<>"" THEN
-        sParameters=request.querystring("Parameters")
-    END IF
+    'IF request.querystring("Parameters")<>"" THEN
+    '    sParameters=request.querystring("Parameters")
+    'END IF
     IF (detect_input_variables OR detect_output_variables) THEN
         'sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
         command = sRoutineName
@@ -366,7 +365,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 xmlParameters.LoadXML(rsParameters(0))
             END IF
         END IF
-
+        
         'DIM sParameter, ns
 
         i=0
@@ -488,6 +487,10 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
 		    NEXT
         END IF
     END IF
+    'response.write xmlParameters.xml
+    'response.write xmlOutputParameters.xml
+    'response.end
+
 '    FOR EACH sParameter IN request.querystring
 '	    IF INSTR(sType,"F")=0 AND testMatch(sParameter, "^\@") THEN
 '            IF sParameters<>"" THEN
