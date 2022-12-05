@@ -543,7 +543,7 @@ END IF
 
 strSQL=REPLACE(strSQL, "'NULL'", "NULL")
 strSQL=REPLACE(strSQL, "'null'", "null")
-strSQL=""& sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL
+strSQL="BEGIN TRY EXECUTE AS USER='"&session("user_login")&"' END TRY BEGIN CATCH END CATCH; "& sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL
 
 'strSQL="BEGIN TRY "&strSQL&" END TRY BEGIN CATCH DECLARE @Message NVARCHAR(MAX); SELECT @Message=ERROR_MESSAGE(); EXEC [$Table].[getCustomMessage] @Message=@Message, @Exec=1; END CATCH"
 'ELSE
