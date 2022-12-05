@@ -337,21 +337,22 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         detect_missing_variables = TRUE
     END IF
 
-    'IF request.querystring("Parameters")<>"" THEN
-    '    sParameters=request.querystring("Parameters")
-    'END IF
+    IF request.querystring("Parameters")<>"" THEN
+        sQueryParameters=request.querystring("Parameters")
+    END IF
     IF (detect_input_variables OR detect_output_variables) THEN
-        'sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
+        'sQueryParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
         command = sRoutineName
-        IF detect_input_variables AND sParameters<>"" THEN
-            sParameters=replaceMatch(sParameters,"\bDEFAULT\b","'$&'")
-            'response.write sParameters: response.end
+        IF detect_input_variables AND sQueryParameters<>"" THEN
+            sQueryParameters=replaceMatch(sQueryParameters,"\bDEFAULT\b","'$&'")
+            'response.write sQueryParameters: response.end
 
-            sParameters=replaceMatch(sParameters, "^\(|\)$", "")
-            'sParameters=replaceMatch(sParameters, "\@[^=]+=('|\d+|\w+|DEFAULT)", "'$&'")
+            sQueryParameters=replaceMatch(sQueryParameters, "^\(|\)$", "")
+            'sQueryParameters=replaceMatch(sQueryParameters, "\@[^=]+=('|\d+|\w+|DEFAULT)", "'$&'")
 
-            DIM sSQLXMLParams: sSQLXMLParams="SET NOCOUNT ON; IF OBJECT_ID('#panax.parameterStringToXML') IS NOT NULL BEGIN EXEC #panax.parameterStringToXML '"&REPLACE(sParameters,"'","''")&"' END ELSE BEGIN SELECT CONVERT(XML,'') END"  
-            IF debug THEN
+            DIM sSQLXMLParams: sSQLXMLParams="SET NOCOUNT ON; IF OBJECT_ID('#panax.parameterStringToXML') IS NOT NULL BEGIN EXEC #panax.parameterStringToXML '"&REPLACE(sQueryParameters,"'","''")&"' END ELSE BEGIN SELECT CONVERT(XML,'') END"  
+            IF 1=1 or debug THEN
+                response.ContentType = "text/xml" 
                 response.write "<!--"&sSQLXMLParams&"-->"
             END IF
             'response.write sSQLXMLParams: response.end
@@ -379,7 +380,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
             rebuild_parameters_snippet=", @rebuild=1"
         END IF
         DIM sSQLParams: sSQLParams="SET NOCOUNT ON; DECLARE @parameters XML; IF OBJECT_ID('[#panax].[getParameters]') IS NOT NULL BEGIN EXEC [#panax].[getParameters] '"&REPLACE(command,"'","''")&"', @parameters=@parameters OUT"&rebuild_parameters_snippet&"; END SELECT ISNULL(@parameters , '')"
-        IF debug THEN
+        IF 1=1 or debug THEN
             response.ContentType = "text/xml" 
             response.write "<!--"&sSQLParams&"-->"
             'response.end
@@ -429,7 +430,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 SET oOtherNodes = xmlParameters.documentElement.selectNodes("/*/*[@position>"&i&"]")
                 IF request.querystring(sParameterName).count > 0 THEN
                     sParameterValue = request.querystring(sParameterName)
-                ELSEIF NOT(IsEmpty(xParameter)) THEN
+                ELSEIF NOT(IsEmpty(xParameter) OR xParameter IS NOTHING) THEN
                     sParameterValue = xParameter.Text
                     IF (xParameter.getAttribute("xsi:type")) THEN
                         sParameterType = xParameter.getAttribute("xsi:type")
@@ -462,7 +463,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                     data_type="[decimal](10,5)"
                     sParameterValue = "NULL"
                 END IF
-                IF ISNULL(data_type) OR sParameterType="string" THEN
+                IF ISNULL(data_type) AND sParameterType="string" THEN
                     data_type = "nvarchar(MAX)"
                 END IF
     			sParamsDeclaration=sParamsDeclaration& "DECLARE "&oNode.getAttribute("name")&" "&data_type&"; "
@@ -522,7 +523,6 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
 ELSE
     command = sRoutineName
 END IF 
-
 IF INSTR(sType,"P")<>0 THEN
     strSQL="EXEC "&command &"; "
     IF sOutputParams<>"" THEN 
@@ -566,15 +566,16 @@ IF 1=0 AND Debug THEN
 <!--<%= strSQL  %> -->
 <%  response.end
 END IF
-SET recordset = oCn.Execute(strSQL)
-IF SESSION("user_login")="webmaster" AND debug THEN
+IF 1=1 or debug THEN
     IF INSTR(content_type,"xml")>0 THEN
         Response.CodePage = 65001
         Response.CharSet = "UTF-8"
         response.ContentType = "text/xml" 
         response.write "<!--"&strSQL&"-->"
     END IF
+    'response.end
 END IF
+SET recordset = oCn.Execute(strSQL)
 DIM r: r=0
 DO
     r = r+1
