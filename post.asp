@@ -76,6 +76,7 @@ Sub manageError(Err)
 End Sub
 'TERMINAN FUNCIONES
 
+ON ERROR RESUME NEXT
 Response.CodePage = 65001
 Response.CharSet = "UTF-8"
 DIM accept: accept=Request.ServerVariables("HTTP_ACCEPT")
@@ -102,12 +103,10 @@ IF NOT(Session("AccessGranted")) THEN
     Response.CharSet = "ISO-8859-1"
     Response.Status = "401 Unauthorized"
 	ErrorDesc=Err.Description
-    IF ErrorDesc<>"" THEN
         %>{"message":"<%= REPLACE(ErrorDesc, """", "\""") %>"
         <%  IF 1=1 OR session("debug")=TRUE THEN %>
-        , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
-        <%  END IF 
-    END IF
+        , "source": "<%= REPLACE(strSQL, """", "\""") %>"
+        <%  END IF %>}<%
     response.end
 END IF
 DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
@@ -121,12 +120,10 @@ IF Err.Number<>0 THEN
     Response.CharSet = "ISO-8859-1"
     Response.Status = "401 Unauthorized"
 	ErrorDesc=Err.Description
-    IF ErrorDesc<>"" THEN
-        %>{"message":"<%= REPLACE(ErrorDesc, """", "\""") %>"
+    %>{"message":"<%= REPLACE(ErrorDesc, """", "\""") %>"
         <%  IF 1=1 OR session("debug")=TRUE THEN %>
-        , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
-        <%  END IF 
-    END IF
+        , "source": "<%= REPLACE(strSQL, """", "\""") %>"
+        <%  END IF %>}<%
     response.end
 END IF
 oCn.Execute("SET LANGUAGE SPANISH")
@@ -135,7 +132,6 @@ DIM debug: debug=Request.ServerVariables("HTTP_X_DEBUGGING")
 'Response.CodePage = 65001
 'Response.CharSet = "UTF-8"
 Response.CharSet = "ISO-8859-1"
-ON ERROR RESUME NEXT
 
 DIM xmlDoc
 Set xmlDoc=Server.CreateObject("Microsoft.XMLDOM")
