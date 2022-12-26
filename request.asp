@@ -295,9 +295,14 @@ DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&session("us
 file_location=parent_folder&file_name
 set fso=CreateObject("Scripting.FileSystemObject")
 If  Not fso.FolderExists(parent_folder) Then      
-    BuildFullPath parent_folder
+    CreateFolder parent_folder
   'fso.CreateFolder (parent_folder)   
 End If
+
+IF Err.Number<>0 THEN
+    manageError(Err)
+    response.end
+END IF
 
 DIM oXMLFile:	set oXMLFile = Server.CreateObject("Microsoft.XMLDOM")
 oXMLFile.Async = false
@@ -571,16 +576,19 @@ IF 1=0 AND Debug THEN
 <!--<%= strSQL  %> -->
 <%  response.end
 END IF
-IF 1=1 or debug THEN
-    IF INSTR(content_type,"xml")>0 THEN
-        Response.CodePage = 65001
-        Response.CharSet = "UTF-8"
-        response.ContentType = "text/xml" 
-        response.write "<!--"&strSQL&"-->"
-    END IF
-    'response.end
+IF INSTR(content_type,"xml")>0 THEN
+    Response.CodePage = 65001
+    Response.CharSet = "UTF-8"
+    response.ContentType = "text/xml" 
 END IF
 SET recordset = oCn.Execute(strSQL)
+IF Err.Number<>0 THEN 
+    IF INSTR(content_type,"xml")>0 THEN
+        response.write "<!--"&strSQL&"-->"
+    END IF
+    manageError(Err)
+    response.end
+END IF
 DIM r: r=0
 DO
     r = r+1
@@ -588,9 +596,6 @@ DO
         Response.Clear()
     END IF
     IF INSTR(content_type,"xml")>0 THEN
-        Response.CodePage = 65001
-        Response.CharSet = "UTF-8"
-        response.ContentType = "text/xml" 
         IF debug THEN
             response.write "<!--"&recordset.Source&"-->"
         END IF
