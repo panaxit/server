@@ -223,8 +223,15 @@ DIM oField, sDataType, sValue
 DIM oXMLFile:	set oXMLFile = Server.CreateObject("Microsoft.XMLDOM")
 oXMLFile.Async = false
 DO
-    r = r+1
-    IF Err.Number<>0 OR r>max_recordsets THEN 
+    IF r>1 THEN
+        Response.Clear()
+    END IF
+    IF INSTR(Response.ContentType,"xml")>0 THEN
+        IF debug THEN
+            response.write "<!--"&recordset.Source&"-->"
+        END IF
+    END IF
+    IF Err.Number<>0 THEN 'OR r>max_recordsets THEN 
         manageError(Err)
     ELSEIF recordset.fields.Count>0 THEN 
         IF NOT (recordset.BOF and recordset.EOF) THEN 

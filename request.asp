@@ -299,6 +299,11 @@ If  Not fso.FolderExists(parent_folder) Then
   'fso.CreateFolder (parent_folder)   
 End If
 
+IF Err.Number<>0 THEN
+    manageError(Err)
+    response.end
+END IF
+
 DIM oXMLFile:	set oXMLFile = Server.CreateObject("Microsoft.XMLDOM")
 oXMLFile.Async = false
 IF 1=0 and fso.FileExists(file_location) THEN
@@ -541,7 +546,7 @@ ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
     strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ) SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, "&strSQL&" FOR XML PATH('"&root_node&"'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     IF INSTR(content_type,"xml")>0 THEN
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML PATH(''), TYPE) FOR XML PATH(''), TYPE"
+        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML PATH(''), TYPE) FOR XML PATH('x:response'), TYPE"
     ELSE
         strSQL="SELECT "&command & data_predicate
     END IF
@@ -571,26 +576,26 @@ IF 1=0 AND Debug THEN
 <!--<%= strSQL  %> -->
 <%  response.end
 END IF
-IF 1=1 or debug THEN
-    IF INSTR(content_type,"xml")>0 THEN
-        Response.CodePage = 65001
-        Response.CharSet = "UTF-8"
-        response.ContentType = "text/xml" 
-        response.write "<!--"&strSQL&"-->"
-    END IF
-    'response.end
+IF INSTR(content_type,"xml")>0 THEN
+    Response.CodePage = 65001
+    Response.CharSet = "UTF-8"
+    response.ContentType = "text/xml" 
 END IF
 SET recordset = oCn.Execute(strSQL)
+IF Err.Number<>0 THEN 
+    IF INSTR(content_type,"xml")>0 THEN
+        response.write "<!--"&strSQL&"-->"
+    END IF
+    manageError(Err)
+    response.end
+END IF
 DIM r: r=0
 DO
     r = r+1
     IF r>1 THEN
         Response.Clear()
     END IF
-    IF INSTR(content_type,"xml")>0 THEN
-        Response.CodePage = 65001
-        Response.CharSet = "UTF-8"
-        response.ContentType = "text/xml" 
+    IF INSTR(Response.ContentType,"xml")>0 THEN
         IF debug THEN
             response.write "<!--"&recordset.Source&"-->"
         END IF
@@ -602,7 +607,8 @@ DO
 <%          DIM oField, sDataType, sValue %>
 <%          IF INSTR(content_type,"xml")>0 THEN
                     'response.Write("<?xml version='1.0' encoding='UTF-8'?>")
-                    oXMLFile.LoadXML(recordset(0))
+                    oField = recordset(0)
+                    oXMLFile.LoadXML(oField)
                     IF oXMLFile.documentElement IS NOTHING THEN
                         IF Request.ServerVariables("HTTP_ROOT_NODE")<>"" THEN %>
 <<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:x="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
