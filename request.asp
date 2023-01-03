@@ -295,7 +295,7 @@ DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&session("us
 file_location=parent_folder&file_name
 set fso=CreateObject("Scripting.FileSystemObject")
 If  Not fso.FolderExists(parent_folder) Then      
-    BuildFullPath parent_folder
+    CreateFolder parent_folder
   'fso.CreateFolder (parent_folder)   
 End If
 
