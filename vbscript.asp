@@ -204,7 +204,7 @@ FUNCTION checkConnection(oCn)
 	    ErrorDesc=SqlRegEx.Replace(error_description, "")
         'response.write Err.Number&": "&Err.Description
         IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 OR INSTR(ErrorDesc,"ConnectionWrite")>0 THEN
-            AsyncCall "https://server.panax.io:8081/startSQL"
+            AsyncCall "http://localhost:8080/startSQL"
             'AsyncCall Left(currentLocation, instrRev(currentLocation, "/"))&"reconnect.asp"
             Err.Clear
             Sleep(3)
