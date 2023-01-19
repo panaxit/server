@@ -608,7 +608,9 @@ DO
 <%          IF INSTR(content_type,"xml")>0 THEN
                     'response.Write("<?xml version='1.0' encoding='UTF-8'?>")
                     oField = recordset(0)
-                    oXMLFile.LoadXML(oField)
+                    IF NOT(ISNULL(oField)) THEN
+                        oXMLFile.LoadXML(oField)
+                    END IF
                     IF oXMLFile.documentElement IS NOTHING THEN
                         IF Request.ServerVariables("HTTP_ROOT_NODE")<>"" THEN %>
 <<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:x="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
