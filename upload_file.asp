@@ -38,6 +38,7 @@ If Form.State = fsCompleted Then 'Completed
 		    {
 		    files: [{}
 <%  DIM File 
+	Response.AddHeader "Content-Type", "text/plain; charset=UTF-8"
     FOR EACH File IN Form.Files.Items
 	    saveAs=Request.QueryString("saveAs")'TRIM(Form("saveAs").Value)
         extension = fso.GetExtensionName(Form.Files.Item(File.Name).FileName)
