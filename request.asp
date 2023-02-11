@@ -240,6 +240,8 @@ IF INSTR(sType,"T")<>0 THEN
         data_predicate = request.querystring("filters")
     END IF
 END IF
+
+data_predicate = URLDecode(data_predicate)
 DIM payload
 set xmlParameters = Server.CreateObject("Microsoft.XMLDOM"): 
 xmlParameters.Async = false: 
