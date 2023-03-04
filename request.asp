@@ -154,7 +154,7 @@ IF root_node="" THEN
 END IF
 DIM page_size: page_size = Request.ServerVariables("HTTP_X_PAGE_SIZE")
 IF page_size="" THEN
-    page_size="20"
+    page_size="100000"
 END IF
 DIM page_index: page_index = Request.ServerVariables("HTTP_X_PAGE_INDEX")
 IF page_index="" THEN
