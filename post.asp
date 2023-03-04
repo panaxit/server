@@ -131,7 +131,7 @@ oCn.Execute("SET LANGUAGE SPANISH")
 DIM debug: debug=Request.ServerVariables("HTTP_X_DEBUGGING")
 'Response.CodePage = 65001
 'Response.CharSet = "UTF-8"
-Response.CharSet = "ISO-8859-1"
+'Response.CharSet = "ISO-8859-1"
 
 DIM xmlDoc
 Set xmlDoc=Server.CreateObject("Microsoft.XMLDOM")

@@ -240,6 +240,8 @@ IF INSTR(sType,"T")<>0 THEN
         data_predicate = request.querystring("filters")
     END IF
 END IF
+
+data_predicate = URLDecode(data_predicate)
 DIM payload
 set xmlParameters = Server.CreateObject("Microsoft.XMLDOM"): 
 xmlParameters.Async = false: 
@@ -411,7 +413,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         END IF
         FOR EACH sParameter IN request.querystring
 	        IF testMatch(sParameter, "^\@") THEN
-		        sParamValue=request.querystring(sParameter)
+		        sParamValue=URLDecode(request.querystring(sParameter))
 		        bParameterString=NOT(sParamValue="" OR UCASE(sParamValue)="NULL" OR UCASE(sParamValue)="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
 		        IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
 		        IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
@@ -438,9 +440,10 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 sParameterType = "string"
                 set xParameter=xmlParameters.documentElement.selectSingleNode("/*/*[not(@name)][@position='"&i&"']|/*/*[@name='"&sParameterName&"']")
                 SET oOtherNodes = xmlParameters.documentElement.selectNodes("/*/*[@position>"&i&"]")
-                IF request.querystring(sParameterName).count > 0 THEN
-                    sParameterValue = request.querystring(sParameterName)
-                ELSEIF NOT(IsEmpty(xParameter) OR xParameter IS NOTHING) THEN
+                'IF request.querystring(sParameterName).count > 0 THEN
+                '    sParameterValue = request.querystring(sParameterName)
+                'ELSE
+                IF NOT(IsEmpty(xParameter) OR xParameter IS NOTHING) THEN
                     sParameterValue = xParameter.Text
                     IF (xParameter.getAttribute("xsi:type")) THEN
                         sParameterType = xParameter.getAttribute("xsi:type")
