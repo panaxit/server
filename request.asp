@@ -392,7 +392,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
             rebuild_parameters_snippet=", @rebuild=1"
         END IF
         DIM sSQLParams: sSQLParams="SET NOCOUNT ON; DECLARE @parameters XML; IF OBJECT_ID('[#panax].[getParameters]') IS NOT NULL BEGIN EXEC [#panax].[getParameters] '"&REPLACE(command,"'","''")&"', @parameters=@parameters OUT"&rebuild_parameters_snippet&"; END SELECT ISNULL(@parameters , '')"
-        IF 1=1 or debug THEN
+        IF debug THEN
             response.ContentType = "text/xml" 
             response.write "<!--"&sSQLParams&"-->"
             'response.end
@@ -643,6 +643,7 @@ DO
 		                NEXT
                         FOR EACH oNode IN x_parameters
                             IF "@"&oNode.nodeName = output_parameter OR output_parameter="" AND x_parameters.length = 1 THEN
+                                Response.Clear()
                                 Response.write oNode.firstChild.xml
                             END IF
 		                NEXT
