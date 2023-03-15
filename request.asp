@@ -78,11 +78,11 @@ Sub manageError(Err)
     ELSEIF INSTR(message,"SQL Server does not exist or access denied")>0 OR INSTR(message,"Communication link failure")>0 THEN
         Response.Status = "503 Service Unavailable" '"408 Request Timeout"
         AsyncCall "http://localhost:8080/startSQL"
-    ELSEIF INSTR(UCASE(message), UCASE("clave duplicada"))>0 THEN
-		message="PRECAUCIÓN: No se puede insertar un registro duplicado."
-	ELSEIF INSTR(UCASE(message), UCASE("La columna no admite valores NULL"))>0 THEN
-		message="El campo no se puede quedar vacío"
-	ELSE
+    'ELSEIF INSTR(UCASE(message), UCASE("clave duplicada"))>0 THEN
+	'	message="PRECAUCIÓN: No se puede insertar un registro duplicado."
+	'ELSEIF INSTR(UCASE(message), UCASE("La columna no admite valores NULL"))>0 THEN
+	'	message="El campo no se puede quedar vacío"
+	'ELSE
 		'message="El sistema no pudo completar el proceso y envió el siguiente mensaje: \n\n"&message
 	END IF
 
