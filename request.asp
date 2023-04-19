@@ -63,6 +63,21 @@ Function BytesToStr(bytes)
     Set Stream = Nothing
 End Function
 
+Function getQuerystring(key)
+    DIM string: string=""
+    IF Request.QueryString(key).count > 0 THEN
+        IF Request.QueryString(key).count > 1 THEN
+            ' Loop through each value and append a WHERE clause condition for each one
+            FOR EACH value IN Request.QueryString(key)
+                string = string & " AND " & value
+            NEXT
+        ELSE
+            string = string & " AND " & Request.QueryString(key)
+        END IF
+    END IF
+    getQuerystring = string
+End Function
+
 Sub manageError(Err)
     Response.CharSet = "UTF-8"
     Response.Clear()
@@ -175,27 +190,31 @@ IF max_recordsets="" THEN
 END IF
 
 'RESOURCE
-DIM command: command = request.querystring("command")
-IF command="" THEN
-    command = request.querystring("FROM")
-END IF
-'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
-DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
-'response.write "<!-- "&sRequestType&" -->": response.end
-'strSQL=URLDecode(sRequestType) 'El símbol de (+) %2B es decodificado mal, revisar si es necesario decodificar
-DIM rsType: SET rsType = oCn.Execute(sRequestType)
 DIM sType
 sType = Request.ServerVariables("HTTP_QUERY_TYPE")
-DIM sRoutineName: sRoutineName = URLDecode(request.querystring("RoutineName"))
-IF NOT (rsType.BOF and rsType.EOF) THEN 
-    sType = rsType("Type")
-    sRoutineName = rsType("Object_Name")
-ELSEIF Request.ServerVariables("HTTP_QUERY_TYPE")<>"" THEN
-    sType = Request.ServerVariables("HTTP_QUERY_TYPE")
+DIM command: command = request.querystring("command")
+IF command<>"" THEN
+    'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
+    DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
+    'response.write "<!-- "&sRequestType&" -->": response.end
+    'strSQL=URLDecode(sRequestType) 'El símbol de (+) %2B es decodificado mal, revisar si es necesario decodificar
+    DIM rsType: SET rsType = oCn.Execute(sRequestType)
+    DIM sRoutineName: sRoutineName = URLDecode(request.querystring("RoutineName"))
+    IF NOT (rsType.BOF and rsType.EOF) THEN 
+        sType = rsType("Type")
+        sRoutineName = rsType("Object_Name")
+    ELSEIF Request.ServerVariables("HTTP_QUERY_TYPE")<>"" THEN
+        sType = Request.ServerVariables("HTTP_QUERY_TYPE")
+    ELSE
+        Response.Status = "404 Not found"
+        Response.End
+    END IF
 ELSE
-    Response.Status = "404 Not found"
-    Response.End
+    command = request.querystring("FROM")
+    sRoutineName = command
+    sType="T"
 END IF
+
 'response.write "sRoutineName: "&sRoutineName: response.end
 IF INSTR(sType,"V")<>0 THEN
     sType = "T"
@@ -242,9 +261,13 @@ IF INSTR(sType,"T")<>0 THEN
     IF data_predicate="" THEN
         data_predicate = request.querystring("filters")
     END IF
+    data_predicate = data_predicate & getQuerystring("AND")
 END IF
 
 data_predicate = URLDecode(data_predicate)
+IF data_predicate<>"" THEN
+    data_predicate = " 1=1 " & data_predicate
+END IF
 DIM payload
 set xmlParameters = Server.CreateObject("Microsoft.XMLDOM"): 
 xmlParameters.Async = false: 
@@ -397,7 +420,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         DIM sSQLParams: sSQLParams="SET NOCOUNT ON; DECLARE @parameters XML; IF OBJECT_ID('[#panax].[getParameters]') IS NOT NULL BEGIN EXEC [#panax].[getParameters] '"&REPLACE(command,"'","''")&"', @parameters=@parameters OUT"&rebuild_parameters_snippet&"; END SELECT ISNULL(@parameters , '')"
         IF debug THEN
             response.ContentType = "text/xml" 
-            response.write "<!--"&sSQLParams&"-->"
+            response.write "<!--"&sSQLParams&"-->" & vbcrlf
             'response.end
         END IF
         SET rsParameters = oCn.Execute(sSQLParams)
@@ -590,7 +613,7 @@ END IF
 SET recordset = oCn.Execute(strSQL)
 IF Err.Number<>0 THEN 
     IF INSTR(content_type,"xml")>0 THEN
-        response.write "<!--"&strSQL&"-->"
+        response.write "<!--"&strSQL&"-->" & vbcrlf
     END IF
     manageError(Err)
     response.end
