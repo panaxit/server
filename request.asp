@@ -63,31 +63,44 @@ Function BytesToStr(bytes)
     Set Stream = Nothing
 End Function
 
-Function getQuerystring(key)
-    DIM string: string=""
-    IF Request.QueryString(key).count > 0 THEN
-        IF Request.QueryString(key).count > 1 THEN
-            ' Loop through each value and append a WHERE clause condition for each one
-            FOR EACH value IN Request.QueryString(key)
-                string = string & " AND " & value
-            NEXT
-        ELSE
-            string = string & " AND " & Request.QueryString(key)
-        END IF
-    END IF
+Function getQuerystring(keys, join)
+    Dim string: string=""
+    Dim key
+    For Each key in keys
+        If Request.QueryString(key).count > 0 Then
+            If Request.QueryString(key).count > 1 Then
+                Dim value
+                For Each value In Request.QueryString(key)
+                    string = string & join & value
+                Next
+            Else
+                string = string & join & Request.QueryString(key)
+            End If
+            IF join<>"" THEN
+                string = replace(string, join, "", 1, 1)
+            END IF
+        End If
+    Next
     getQuerystring = string
 End Function
 
+
 Sub manageError(Err)
+    If TypeName(Err) = "String" Then
+        Description = Err
+    ELSE 
+        Description = Err.Description
+    End If
+
     Response.CharSet = "UTF-8"
     Response.Clear()
-    IF INSTR(Err.Description, "interbloqueo") THEN
+    IF INSTR(Description, "interbloqueo") THEN
         Response.Status = "423 Locked"
     ELSE 
         Response.Status = "409 Conflict"
     END IF
 
-    DIM message: message=RegEx.Replace(Err.Description, "")
+    DIM message: message=RegEx.Replace(Description, "")
     IF message="" AND r>max_recordsets THEN
         message = "La solicitud devolvió más conjuntos de datos de los permitidos"
     ELSEIF INSTR(message,"SQL Server does not exist or access denied")>0 OR INSTR(message,"Communication link failure")>0 THEN
@@ -192,27 +205,26 @@ END IF
 'RESOURCE
 DIM sType
 sType = Request.ServerVariables("HTTP_QUERY_TYPE")
-DIM command: command = request.querystring("command")
-IF command<>"" THEN
-    'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
-    DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
-    'response.write "<!-- "&sRequestType&" -->": response.end
-    'strSQL=URLDecode(sRequestType) 'El símbol de (+) %2B es decodificado mal, revisar si es necesario decodificar
-    DIM rsType: SET rsType = oCn.Execute(sRequestType)
-    DIM sRoutineName: sRoutineName = URLDecode(request.querystring("RoutineName"))
-    IF NOT (rsType.BOF and rsType.EOF) THEN 
-        sType = rsType("Type")
-        sRoutineName = rsType("Object_Name")
-    ELSEIF Request.ServerVariables("HTTP_QUERY_TYPE")<>"" THEN
-        sType = Request.ServerVariables("HTTP_QUERY_TYPE")
-    ELSE
-        Response.Status = "404 Not found"
-        Response.End
-    END IF
+DIM command: 
+command = getQuerystring(Array("command","FROM"), ",")
+IF command="" THEN
+    manageError("No command provided")
+END IF
+
+'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
+DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
+'response.write "<!-- "&sRequestType&" -->": response.end
+'strSQL=URLDecode(sRequestType) 'El símbol de (+) %2B es decodificado mal, revisar si es necesario decodificar
+DIM rsType: SET rsType = oCn.Execute(sRequestType)
+DIM sRoutineName: sRoutineName = URLDecode(request.querystring("RoutineName"))
+IF NOT (rsType.BOF and rsType.EOF) THEN 
+    sType = rsType("Type")
+    sRoutineName = rsType("Object_Name")
+ELSEIF Request.ServerVariables("HTTP_QUERY_TYPE")<>"" THEN
+    sType = Request.ServerVariables("HTTP_QUERY_TYPE")
 ELSE
-    command = request.querystring("FROM")
-    sRoutineName = command
-    sType="T"
+    Response.Status = "404 Not found"
+    Response.End
 END IF
 
 'response.write "sRoutineName: "&sRoutineName: response.end
@@ -261,13 +273,10 @@ IF INSTR(sType,"T")<>0 THEN
     IF data_predicate="" THEN
         data_predicate = request.querystring("filters")
     END IF
-    data_predicate = data_predicate & getQuerystring("AND")
+    data_predicate = data_predicate & getQuerystring(Array("AND"), " AND ")
 END IF
 
 data_predicate = URLDecode(data_predicate)
-IF data_predicate<>"" THEN
-    data_predicate = " 1=1 " & data_predicate
-END IF
 DIM payload
 set xmlParameters = Server.CreateObject("Microsoft.XMLDOM"): 
 xmlParameters.Async = false: 
