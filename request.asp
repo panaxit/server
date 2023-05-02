@@ -71,10 +71,10 @@ Function getQuerystring(keys, join)
             If Request.QueryString(key).count > 1 Then
                 Dim value
                 For Each value In Request.QueryString(key)
-                    string = string & join & value
+                    string = string & join & URLDecode(value)
                 Next
             Else
-                string = string & join & Request.QueryString(key)
+                string = string & join & URLDecode(Request.QueryString(key))
             End If
             IF join<>"" THEN
                 string = replace(string, join, "", 1, 1)
@@ -239,19 +239,19 @@ data_fields = URLDecode(""&data_fields)
 DIM data_value: data_value = Request.ServerVariables("HTTP_X_DATA_VALUE")
 IF data_value<>"" THEN
     IF data_fields<>"" THEN data_fields=data_fields & ", " END IF
-    data_fields = data_fields & "[value]=" & data_value
+    data_fields = data_fields & "[value]=" & URLDecode(data_value)
 END IF
 
 DIM data_text: data_text = Request.ServerVariables("HTTP_X_DATA_TEXT")
 IF data_text<>"" THEN
     IF data_fields<>"" THEN data_fields=data_fields & ", " END IF
-    data_fields = data_fields & "[text]=" & data_text
+    data_fields = data_fields & "[text]=" & URLDecode(data_text)
 ELSEIF data_value<>"" THEN
-    data_fields = data_fields & "[text]=" & data_value
+    data_fields = data_fields & "[text]=" & URLDecode(data_value)
 END IF
 IF request.querystring("fields")<>"" THEN
     IF data_fields<>"" THEN data_fields = data_fields & ", " END IF
-    data_fields = data_fields & request.querystring("fields")
+    data_fields = data_fields & URLDecode(request.querystring("fields"))
 END IF
 IF data_fields="" THEN
     data_fields="*"
@@ -268,10 +268,10 @@ IF INSTR(sType,"T")<>0 THEN
         data_predicate = Request.ServerVariables("HTTP_X_DATA_FILTERS")
     END IF
     IF data_predicate="" THEN
-        data_predicate = request.querystring("predicate")
+        data_predicate = URLDecode(request.querystring("predicate"))
     END IF
     IF data_predicate="" THEN
-        data_predicate = request.querystring("filters")
+        data_predicate = URLDecode(request.querystring("filters"))
     END IF
     data_predicate = data_predicate & getQuerystring(Array("AND"), " AND ")
 END IF
@@ -385,7 +385,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
     END IF
 
     IF request.querystring("Parameters")<>"" THEN
-        sQueryParameters=request.querystring("Parameters")
+        sQueryParameters=URLDecode(request.querystring("Parameters"))
     END IF
     IF (detect_input_variables OR detect_output_variables) THEN
         'sQueryParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
