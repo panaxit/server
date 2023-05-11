@@ -1,8 +1,9 @@
 ﻿<!--#include file="vbscript.asp"-->
 <% 
 'for each x in Request.ServerVariables
-'  response.write("<B>" & x & ":</b> " & Request.ServerVariables(x) & "<p />")
+  'response.write("<!--" & x & ": " & Request.ServerVariables(x) & "-->")
 'next
+'response.write("<!--" & Request.ServerVariables("URL") & "?" & Request.ServerVariables("QUERY_STRING") & "-->")
 DIM content_type: content_type=Request.ServerVariables("HTTP_ACCEPT")
 IF content_type="*/*" OR content_type="*/*, */*" THEN
     content_type="text/xml"
@@ -318,7 +319,7 @@ IF xmlParameters.documentElement IS NOTHING THEN
 END IF
 
 'CACHÉ
-DIM full_request: full_request=data_fields&"&"&command&"&"&data_predicate
+DIM full_request: full_request=Request.ServerVariables("URL") & "?" & Request.ServerVariables("QUERY_STRING")'data_fields&"&"&command&"&"&data_predicate
 DIM file_location, file_name
 IF INSTR(content_type,"xml")>0 THEN
     file_name=Hash("md5",REPLACE(full_request,"ñ","")) &".xml"
@@ -343,12 +344,12 @@ END IF
 
 DIM oXMLFile:	set oXMLFile = Server.CreateObject("Microsoft.XMLDOM")
 oXMLFile.Async = false
-IF 1=0 and fso.FileExists(file_location) THEN
+IF fso.FileExists(file_location) THEN
     oXMLFile.load(file_location)
     Response.CodePage = 65001
     Response.CharSet = "UTF-8"
     Response.ContentType = "text/xml"
-    Response.write "<!-- Desde cache: "&file_name&"-->"
+    Response.write "<!-- Desde cache: "&file_name&". "&full_request&"-->"
     DIM xslFile, xslValues
     xslFile=server.MapPath(".")&"\normalize_values.xslt"
     Set xslValues=Server.CreateObject("Microsoft.XMLDOM")
@@ -666,7 +667,8 @@ DO
                     END IF
                     'response.write "  Cache-Response: "&Request.ServerVariables("Cache-Response")&"-->"
                     'response.write "<!-- Cache-Response: "&Request.ServerVariables("HTTP_CACHE_RESPONSE")&"-->"
-                    IF Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
+                    IF 1=1 or Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
+                        response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
                         oXMLFile.save file_location
                     END IF
                     DIM x_parameters: set x_parameters = oXMLFile.selectNodes("/x:parameters/*")
