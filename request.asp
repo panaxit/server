@@ -162,6 +162,7 @@ IF Err.Number<>0 THEN
     END IF
     response.end
 END IF
+ON ERROR GOTO 0
 oCn.Execute("SET LANGUAGE SPANISH")
     %>
 <%
@@ -212,6 +213,7 @@ IF command="" THEN
     manageError("No command provided")
 END IF
 
+ON ERROR RESUME NEXT
 'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
 DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
 'response.write "<!-- "&sRequestType&" -->": response.end
@@ -329,6 +331,7 @@ ELSEIF INSTR(content_type,"javascript")>0 THEN
 END IF
 
 'response.write "full_request: "&file_name: response.end
+ON ERROR RESUME NEXT
 DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&session("user_login")&"\"
 file_location=parent_folder&file_name
 set fso=CreateObject("Scripting.FileSystemObject")
@@ -341,6 +344,7 @@ IF Err.Number<>0 THEN
     manageError(Err)
     response.end
 END IF
+ON ERROR GOTO 0
 
 DIM oXMLFile:	set oXMLFile = Server.CreateObject("Microsoft.XMLDOM")
 oXMLFile.Async = false
@@ -643,50 +647,62 @@ DO
         manageError(Err)
     ELSEIF recordset.fields.Count>0 THEN 
         IF NOT (recordset.BOF and recordset.EOF) THEN %>
-<%          DIM oField, sDataType, sValue %>
+<%          
+            ON ERROR GOTO 0
+            DIM oField, sDataType, sValue %>
 <%          IF INSTR(content_type,"xml")>0 THEN
-                    'response.Write("<?xml version='1.0' encoding='UTF-8'?>")
-                    oField = recordset(0)
-                    IF NOT(ISNULL(oField)) THEN
-                        oXMLFile.LoadXML(oField)
-                    END IF
-                    IF oXMLFile.documentElement IS NOTHING THEN
-                        IF Request.ServerVariables("HTTP_ROOT_NODE")<>"" THEN %>
+                'response.Write("<?xml version='1.0' encoding='UTF-8'?>")
+                oField = recordset(0)
+                IF NOT(ISNULL(oField)) THEN
+                    oXMLFile.LoadXML(oField)
+                END IF
+                IF oXMLFile.documentElement IS NOTHING THEN
+                    IF Request.ServerVariables("HTTP_ROOT_NODE")<>"" THEN %>
 <<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:x="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
 <%                  ELSE
-                             Response.Status = "204 No Content"
+                            Response.Status = "204 No Content"
+                    END IF
+                END IF
+                'oXMLFile.loadXML(oXMLFile.transformNode(xslValues))
+                xslFile=server.MapPath(".")&"\normalize_namespaces.xslt"
+                IF (fso.FileExists(xslFile)) THEN
+                    Set xslDoc=Server.CreateObject("Microsoft.XMLDOM")
+                    xslDoc.async="false"
+                    xslDoc.load(xslFile)
+                    oXMLFile.loadXML(oXMLFile.transformNode(xslDoc))
+                END IF
+                'response.write "  Cache-Response: "&Request.ServerVariables("Cache-Response")&"-->"
+                'response.write "<!-- Cache-Response: "&Request.ServerVariables("HTTP_CACHE_RESPONSE")&"-->"
+                DIM x_parameters: set x_parameters = oXMLFile.selectNodes("/x:parameters/*")
+                IF x_parameters.length>0 THEN
+                    FOR EACH oNode IN x_parameters
+                        ON ERROR RESUME NEXT
+                        IF "@"&oNode.nodeName <> output_parameter THEN
+                            Response.AddHeader "x-"&replace(oNode.nodeName,"_","-"), oNode.firstChild.xml
                         END IF
-                    END IF
-                    'oXMLFile.loadXML(oXMLFile.transformNode(xslValues))
-                    xslFile=server.MapPath(".")&"\normalize_namespaces.xslt"
-                    IF (fso.FileExists(xslFile)) THEN
-                        Set xslDoc=Server.CreateObject("Microsoft.XMLDOM")
-                        xslDoc.async="false"
-                        xslDoc.load(xslFile)
-                        oXMLFile.loadXML(oXMLFile.transformNode(xslDoc))
-                    END IF
-                    'response.write "  Cache-Response: "&Request.ServerVariables("Cache-Response")&"-->"
-                    'response.write "<!-- Cache-Response: "&Request.ServerVariables("HTTP_CACHE_RESPONSE")&"-->"
+                        response.write "<!--<WARNING>"& Err.Description &"</WARNING>-->"
+                        ON ERROR GOTO 0
+		            NEXT
+                    FOR EACH oNode IN x_parameters
+                        IF "@"&oNode.nodeName = output_parameter OR output_parameter="" AND x_parameters.length = 1 THEN
+                            Response.Clear()
+                            DIM objFirstChild:	set objFirstChild = Server.CreateObject("Microsoft.XMLDOM")
+                            objFirstChild.Async = false
+                            objFirstChild.loadXML(oNode.firstChild.xml)
+                            IF 1=1 or Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
+                                response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
+                                objFirstChild.save file_location
+                            END IF
+                            Response.write objFirstChild.xml
+                        END IF
+		            NEXT
+                ELSE
                     IF 1=1 or Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
                         response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
                         oXMLFile.save file_location
                     END IF
-                    DIM x_parameters: set x_parameters = oXMLFile.selectNodes("/x:parameters/*")
-                    IF x_parameters.length>0 THEN
-                        FOR EACH oNode IN x_parameters
-                            IF "@"&oNode.nodeName <> output_parameter THEN
-                                Response.AddHeader "x-"&replace(oNode.nodeName,"_","-"), oNode.firstChild.xml
-                            END IF
-		                NEXT
-                        FOR EACH oNode IN x_parameters
-                            IF "@"&oNode.nodeName = output_parameter OR output_parameter="" AND x_parameters.length = 1 THEN
-                                Response.Clear()
-                                Response.write oNode.firstChild.xml
-                            END IF
-		                NEXT
-                    ELSE
-                        response.write oXMLFile.xml
-                    END IF
+                    response.write oXMLFile.xml
+                END IF
             ELSE %>
                 [<% dim f: f=0: DO UNTIL recordset.EOF 
                     f = f + 1 %>
@@ -728,4 +744,5 @@ LOOP UNTIL recordset is nothing or r>max_recordsets
 If oCn.State = 1 THEN
     oCn.Close
 END IF
-            %>
+ON ERROR GOTO 0
+%>
