@@ -162,8 +162,8 @@ IF Err.Number<>0 THEN
     END IF
     response.end
 END IF
-ON ERROR GOTO 0
 oCn.Execute("SET LANGUAGE SPANISH")
+ON ERROR GOTO 0
     %>
 <%
 DIM rebuild: rebuild=eval(Request.ServerVariables("HTTP_X_REBUILD"))
@@ -348,7 +348,7 @@ ON ERROR GOTO 0
 
 DIM oXMLFile:	set oXMLFile = Server.CreateObject("Microsoft.XMLDOM")
 oXMLFile.Async = false
-IF fso.FileExists(file_location) THEN
+IF 1=0 and fso.FileExists(file_location) THEN
     oXMLFile.load(file_location)
     Response.CodePage = 65001
     Response.CharSet = "UTF-8"
@@ -624,6 +624,7 @@ IF INSTR(content_type,"xml")>0 THEN
     Response.CharSet = "UTF-8"
     response.ContentType = "text/xml" 
 END IF
+ON ERROR RESUME NEXT
 SET recordset = oCn.Execute(strSQL)
 IF Err.Number<>0 THEN 
     IF INSTR(content_type,"xml")>0 THEN
