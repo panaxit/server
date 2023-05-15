@@ -348,20 +348,39 @@ ON ERROR GOTO 0
 
 DIM oXMLFile:	set oXMLFile = Server.CreateObject("Microsoft.XMLDOM")
 oXMLFile.Async = false
-IF 1=0 and fso.FileExists(file_location) THEN
-    oXMLFile.load(file_location)
-    Response.CodePage = 65001
-    Response.CharSet = "UTF-8"
-    Response.ContentType = "text/xml"
-    Response.write "<!-- Desde cache: "&file_name&". "&full_request&"-->"
-    DIM xslFile, xslValues
-    xslFile=server.MapPath(".")&"\normalize_values.xslt"
-    Set xslValues=Server.CreateObject("Microsoft.XMLDOM")
-    xslValues.async="false"
-    xslValues.load(xslFile)
-    oXMLFile.loadXML(oXMLFile.transformNode(xslValues))
-    Response.Write oXMLFile.xml
-    Response.end
+
+IF fso.FileExists(file_location) THEN
+    Set file = fso.GetFile(file_location)
+    Dim fileAge
+    fileAge = Now() - file.DateLastModified
+    Dim maxAge
+    maxAge = -1 ' Default value for max-age
+    If Request.ServerVariables("HTTP_CACHE_CONTROL") <> "" Then
+        Dim cacheControl
+        cacheControl = Request.ServerVariables("HTTP_CACHE_CONTROL")
+        Dim maxAgeIndex
+        maxAgeIndex = InStr(cacheControl, "max-age=")
+        If maxAgeIndex > 0 Then
+            maxAge = CInt(Mid(cacheControl, maxAgeIndex + 8))
+        End If
+    End If
+    If maxAge >= 0 And fileAge < (maxAge / 86400) Then ' Convert max-age from seconds to days
+        ' Return the cached version of the file
+        Response.CacheControl = "public, max-age=" & maxAge
+        oXMLFile.load(file_location)
+        Response.CodePage = 65001
+        Response.CharSet = "UTF-8"
+        Response.ContentType = "text/xml"
+        Response.write "<!-- Desde cache: "&file_name&". "&full_request&"-->"
+        DIM xslFile, xslValues
+        xslFile=server.MapPath(".")&"\normalize_values.xslt"
+        Set xslValues=Server.CreateObject("Microsoft.XMLDOM")
+        xslValues.async="false"
+        xslValues.load(xslFile)
+        oXMLFile.loadXML(oXMLFile.transformNode(xslValues))
+        Response.Write oXMLFile.xml
+        Response.end
+    End If
 END IF
 
 IF INSTR(sType,"T")<>0 THEN
