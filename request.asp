@@ -263,7 +263,7 @@ END IF
 'PREDICATES (FOR TABLES AN FUNCTION TABLES)
 DIM order_by: order_by = Request.ServerVariables("HTTP_X_ORDER_BY")
 IF (order_by="") THEN
-    order_by="NULL"
+    order_by="(SELECT NULL)"
 END IF
 DIM data_predicate: data_predicate = Request.ServerVariables("HTTP_X_DATA_PREDICATE")
 IF INSTR(sType,"T")<>0 THEN
@@ -601,7 +601,7 @@ IF INSTR(sType,"P")<>0 THEN
         strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:parameters'), TYPE"
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
-    strSQL="(SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY (SELECT "&order_by&")), [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
+    strSQL="(SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
     IF namespaces<>"" THEN
         namespaces = ", " & namespaces
     END IF
