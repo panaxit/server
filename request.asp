@@ -72,10 +72,10 @@ Function getQuerystring(keys, join)
             If Request.QueryString(key).count > 1 Then
                 Dim value
                 For Each value In Request.QueryString(key)
-                    string = string & join & URLDecode(value)
+                    string = string & join & value 'URLDecode(value)
                 Next
             Else
-                string = string & join & URLDecode(Request.QueryString(key))
+                string = string & join & Request.QueryString(key)'URLDecode(Request.QueryString(key)) --Ya es decodificado automáticamente. Caso "folio like '%2304'", lo decodifica nuevamente como "folio like '#04'"
             End If
             IF join<>"" THEN
                 string = replace(string, join, "", 1, 1)
@@ -276,10 +276,11 @@ IF INSTR(sType,"T")<>0 THEN
     IF data_predicate="" THEN
         data_predicate = URLDecode(request.querystring("filters"))
     END IF
-    data_predicate = data_predicate & getQuerystring(Array("AND"), " AND ")
+    data_predicate = data_predicate & getQuerystring(Array("WHERE"), " AND ")
+    extra_predicate= extra_predicate & getQuerystring(Array("AND"), " AND ")
 END IF
 
-data_predicate = URLDecode(data_predicate)
+'data_predicate = URLDecode(data_predicate) 'Se comenta porque ya se decodifica en las funciones y se podría decodificar dos veces indebidamente
 DIM payload
 set xmlParameters = Server.CreateObject("Microsoft.XMLDOM"): 
 xmlParameters.Async = false: 
@@ -387,6 +388,9 @@ IF INSTR(sType,"T")<>0 THEN
     'data_fields="TOP 1000 "&data_fields&" "
     IF data_predicate<>"" THEN
         data_predicate=" WHERE "&data_predicate
+    END IF
+    IF extra_predicate<>"" THEN
+        extra_predicate=" WHERE "&extra_predicate
     END IF
 END IF 
 
@@ -601,7 +605,7 @@ IF INSTR(sType,"P")<>0 THEN
         strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:parameters'), TYPE"
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
-    strSQL="(SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
+    strSQL="(SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:totalCount] = COUNT(1) OVER(), * FROM (SELECT "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE)"
     IF namespaces<>"" THEN
         namespaces = ", " & namespaces
     END IF
