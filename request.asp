@@ -72,10 +72,10 @@ Function getQuerystring(keys, join)
             If Request.QueryString(key).count > 1 Then
                 Dim value
                 For Each value In Request.QueryString(key)
-                    string = string & join & value 'URLDecode(value)
+                    string = string & join & URLDecode(value)
                 Next
             Else
-                string = string & join & Request.QueryString(key)'URLDecode(Request.QueryString(key)) --Ya es decodificado automáticamente. Caso "folio like '%2304'", lo decodifica nuevamente como "folio like '#04'"
+                string = string & join & URLDecode(Request.QueryString(key)) 'Ya es decodificado automáticamente. Caso "folio like '%2304'", lo decodifica nuevamente como "folio like '#04'"
             End If
             IF join<>"" THEN
                 string = replace(string, join, "", 1, 1)
