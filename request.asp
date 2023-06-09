@@ -323,7 +323,7 @@ END IF
 
 'CACHÉ
 DIM full_request: full_request=Request.ServerVariables("URL") & "?" & Request.ServerVariables("QUERY_STRING")'data_fields&"&"&command&"&"&data_predicate
-DIM file_location, file_name
+DIM file_location, alt_file_location, file_name
 IF INSTR(content_type,"xml")>0 THEN
     file_name=Hash("md5",REPLACE(full_request,"ñ","")) &".xml"
         'response.Clear
@@ -333,13 +333,18 @@ END IF
 
 'response.write "full_request: "&file_name: response.end
 ON ERROR RESUME NEXT
-DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&session("user_login")&"\"
-file_location=parent_folder&file_name
+DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&SESSION("secret_database_user")&"\"
+DIM alt_parent_folder: alt_parent_folder=server.MapPath(".")&"\..\..\cache\"&SESSION("user_login")&"\"
 set fso=CreateObject("Scripting.FileSystemObject")
 If  Not fso.FolderExists(parent_folder) Then      
     CreateFolder parent_folder
-  'fso.CreateFolder (parent_folder)   
 End If
+file_location=parent_folder&file_name
+
+If  Not fso.FolderExists(alt_parent_folder) Then      
+    CreateFolder alt_parent_folder
+End If
+alt_file_location=alt_parent_folder&file_name
 
 IF Err.Number<>0 THEN
     manageError(Err)
@@ -714,16 +719,18 @@ DO
                             objFirstChild.Async = false
                             objFirstChild.loadXML(oNode.firstChild.xml)
                             IF 1=1 or Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
-                                response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
+                                'response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
                                 objFirstChild.save file_location
+                                objFirstChild.save alt_file_location
                             END IF
                             Response.write objFirstChild.xml
                         END IF
 		            NEXT
                 ELSE
                     IF 1=1 or Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
-                        response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
+                        'response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
                         oXMLFile.save file_location
+                        oXMLFile.save alt_file_location
                     END IF
                     response.write oXMLFile.xml
                 END IF
