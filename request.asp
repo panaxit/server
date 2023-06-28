@@ -516,7 +516,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                     IF NOT(IsEmpty(xParameter.getAttribute("xsi:type"))) THEN
                         sParameterType = xParameter.getAttribute("xsi:type")
                     END IF
-                ELSEIF INSTR(sParameterName,"@@")=1 AND SESSION(REPLACE("^"&sParameterName,"^@@","")) > 0 THEN 'Los parámetros con doble arroba pueden mapear automáticamente a variables de sesión.
+                ELSEIF INSTR(sParameterName,"@@")=1 AND NOT(IsEmpty(SESSION(REPLACE("^"&sParameterName,"^@@","")))) THEN 'Los parámetros con doble arroba pueden mapear automáticamente a variables de sesión.
                     sParameterValue = SESSION(REPLACE(sParameterName,"@@",""))
                 ELSE
                     sParameterValue = "DEFAULT"
