@@ -57,14 +57,16 @@ oSiteMap.Async = false:
 		IF session("lang")<>"" THEN sSQL = sSQL&", @lang="&session("lang") END IF
 		set rsRecordSet=oCn.execute(sSQL)
 		SELECT CASE Err.Number
-		CASE -2147217900 %>
+		CASE -2147217900 
+            Response.ContentType = "application/json" %>
 			{
 			success: false,
 			message: "Error: <%= REPLACE(Err.Description, "[Microsoft][ODBC SQL Server Driver][SQL Server]", "") %><% IF session("user_id")=-1 THEN response.write Err.Description & " \n\n"&sSQL %>"
 			}
 <%			CASE 0
 			'continue
-		CASE ELSE %>
+		CASE ELSE 
+            Response.ContentType = "application/json" %>
 			{
 			success: false,
 			message: "Error <%= Err.Number %>!, no se pudo recuperar la información.<% IF session("user_id")=1 THEN response.write Err.Description&" <br><br>"&sSQL %>"
