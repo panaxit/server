@@ -281,7 +281,7 @@ IF INSTR(sType,"T")<>0 THEN
     extra_predicate= extra_predicate & getQuerystring(Array("AND"), " AND ")
 END IF
 IF max_records<>"" THEN
-    max_records_predicate = "WHERE [@meta:totalCount] <= " & max_records
+    max_records_predicate = "WHERE [@meta:resultCount] <= " & max_records
 END IF
 
 'data_predicate = URLDecode(data_predicate) 'Se comenta porque ya se decodifica en las funciones y se podría decodificar dos veces indebidamente
@@ -617,7 +617,7 @@ ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
     IF namespaces<>"" THEN
         namespaces = ", " & namespaces
     END IF
-    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ), #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&") ,[@meta:totalCount] = COUNT(1) OVER(), * FROM ( SELECT "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE) FOR XML PATH('data:rows'), TYPE"
+    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ), #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:resultCount] = COUNT(1) OVER(), * FROM ( SELECT [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), [@meta:resultCount]=(SELECT TOP 1 [@meta:resultCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE) FOR XML PATH('data:rows'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     IF INSTR(content_type,"xml")>0 THEN
         strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML PATH(''), TYPE) FOR XML PATH('x:response'), TYPE"
