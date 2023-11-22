@@ -64,22 +64,30 @@ Function BytesToStr(bytes)
     Set Stream = Nothing
 End Function
 
-Function getQuerystring(keys, join)
+Function getQuerystring(keys, join, bFormatValue)
     Dim string: string=""
     Dim key
     For Each key in keys
         If Request.QueryString(key).count > 0 Then
+            Dim item, value
             If Request.QueryString(key).count > 1 Then
-                Dim value
-                For Each value In Request.QueryString(key)
-                    string = string & join & URLDecode(value)
+                For Each item In Request.QueryString(key)
+                    value = URLDecode(item)
+                    If (bFormatValue) Then
+                        value = FormatValue(value)
+                    End If
+                    string = string & join & value
                 Next
             Else
-                string = string & join & URLDecode(Request.QueryString(key)) 'Ya es decodificado automáticamente. Caso "folio like '%2304'", lo decodifica nuevamente como "folio like '#04'"
+                value = URLDecode(Request.QueryString(key))
+                If (bFormatValue) Then
+                    value = FormatValue(value)
+                End If
+                string = string & join & value 'Ya es decodificado automáticamente. Caso "folio like '%2304'", lo decodifica nuevamente como "folio like '#04'"
             End If
-            IF join<>"" THEN
-                string = replace(string, join, "", 1, 1)
-            END IF
+            'IF join<>"" THEN
+            '    string = replace(string, join, "", 1, 1)
+            'END IF
         End If
     Next
     getQuerystring = string
@@ -209,7 +217,8 @@ END IF
 DIM sType
 sType = Request.ServerVariables("HTTP_QUERY_TYPE")
 DIM command: 
-command = getQuerystring(Array("command","FROM"), ",")
+command = getQuerystring(Array("command","FROM"), ",", False)
+command = MID(command, 2)
 IF command="" THEN
     manageError("No command provided")
 END IF
@@ -277,8 +286,9 @@ IF INSTR(sType,"T")<>0 THEN
     IF data_predicate="" THEN
         data_predicate = URLDecode(request.querystring("filters"))
     END IF
-    data_predicate = data_predicate & getQuerystring(Array("WHERE"), " AND ")
-    extra_predicate= extra_predicate & getQuerystring(Array("AND"), " AND ")
+    data_predicate = data_predicate & getQuerystring(Array("WHERE"), " AND ", False)
+    extra_predicate= extra_predicate & getQuerystring(Array("AND"), " AND ", False)
+    extra_predicate= extra_predicate & getQuerystring(Array("OR"), " OR ", False)
 END IF
 IF max_records<>"" THEN
     max_records_predicate = "WHERE [@meta:resultCount] <= " & max_records
@@ -392,17 +402,6 @@ IF fso.FileExists(file_location) THEN
         Response.end
     End If
 END IF
-
-IF INSTR(sType,"T")<>0 THEN
-    'data_fields="TOP 1000 "&data_fields&" "
-    IF data_predicate<>"" THEN
-        data_predicate=" WHERE "&data_predicate
-    END IF
-    IF extra_predicate<>"" THEN
-        extra_predicate=" WHERE "&extra_predicate
-    END IF
-END IF 
-
 
 IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
     DIM sParamValue, bParameterString', aParameters
@@ -577,19 +576,6 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
     'response.write xmlOutputParameters.xml
     'response.end
 
-'    FOR EACH sParameter IN request.querystring
-'	    IF INSTR(sType,"F")=0 AND testMatch(sParameter, "^\@") THEN
-'            IF sParameters<>"" THEN
-'                sParameters=sParameters&", "
-'            END IF
-'		    sParamValue=request.querystring(sParameter)
-'		    bParameterString=NOT(sParamValue="" OR sParamValue="NULL" OR sParamValue="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
-'		    IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
-'		    IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
-'            sParameters=sParameters & sParameter&"="&sParamValue
-'	    END IF
-'    NEXT
-
     IF INSTR(sType,"F")<>0 THEN
         command = command & "(" & TRIM(sParameters) &")"
     ELSE
@@ -608,6 +594,31 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
 ELSE
     command = sRoutineName
 END IF 
+FOR EACH sParameter IN request.querystring
+	IF INSTR(sType,"T")<>0 AND NOT(testMatch(sParameter, "^\@|^FROM$|^AND$|^OR$|^WHERE$")) THEN
+        'IF sParameters<>"" THEN
+        '    sParameters=sParameters&", "
+        'END IF
+		'sParamValue=request.querystring(sParameter)
+		'bParameterString=NOT(sParamValue="" OR sParamValue="NULL" OR sParamValue="DEFAULT" OR ISNUMERIC(sParamValue) OR 'testMatch(sParamValue, "^['@]"))
+		'IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
+		'IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
+        'sParameters=sParameters & sParameter&" IN ("&sParamValue&")"
+        data_predicate = data_predicate & " AND "
+        data_predicate = data_predicate & sParameter&" IN (NULL"&getQuerystring(Array(sParameter), ",", True)&")"
+	END IF
+NEXT
+
+IF INSTR(sType,"T")<>0 THEN
+    'data_fields="TOP 1000 "&data_fields&" "
+    IF data_predicate<>"" THEN
+        data_predicate=" WHERE 1=1 "&data_predicate
+    END IF
+    IF extra_predicate<>"" THEN
+        extra_predicate=" WHERE 1=1 "&extra_predicate
+    END IF
+END IF 
+
 IF INSTR(sType,"P")<>0 THEN
     strSQL="EXEC "&command &"; "
     IF sOutputParams<>"" THEN 

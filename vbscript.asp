@@ -721,32 +721,32 @@ Function FormatearNombre(strTemp)
 	FormatearNombre=strTemp
 End Function
 
-Function FormatValue(ByVal vValue, ByVal sFormat, ByVal iDecimalPositions)
-	IF IsNullOrEmpty(vValue) THEN FormatValue="": Exit Function END IF
-	IF IsNullOrEmpty(sFormat) THEN FormatValue=vValue: Exit Function END IF
-	SELECT CASE UCASE(sFormat)
-	CASE "MONEY"
-		IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=2
-		FormatValue=FormatCurrency(vValue, iDecimalPositions)
-	CASE "PERCENT"
-		IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=2
-		FormatValue=FormatPercent(vValue/100, iDecimalPositions)
-	CASE "DATE"
-		FormatValue=FormatDateTime(vValue, 2)
-	CASE "DATETIME"
-		FormatValue=FormatDateTime(vValue, 2)&" "&FormatDateTime(vValue, 3)
-	CASE "NUMERIC"
-		IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=0
-		FormatValue=FormatNumber(vValue, iDecimalPositions)
-	CASE ELSE
-'		IF IsNumeric(vValue) THEN
-'			IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=0
-'			FormatValue=FormatNumber(vValue, iDecimalPositions)
-'		ELSE
-		FormatValue=vValue
-'		END IF
-	END SELECT
-End Function
+'Function FormatValue(ByVal vValue, ByVal sFormat, ByVal iDecimalPositions)
+'	IF IsNullOrEmpty(vValue) THEN FormatValue="": Exit Function END IF
+'	IF IsNullOrEmpty(sFormat) THEN FormatValue=vValue: Exit Function END IF
+'	SELECT CASE UCASE(sFormat)
+'	CASE "MONEY"
+'		IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=2
+'		FormatValue=FormatCurrency(vValue, iDecimalPositions)
+'	CASE "PERCENT"
+'		IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=2
+'		FormatValue=FormatPercent(vValue/100, iDecimalPositions)
+'	CASE "DATE"
+'		FormatValue=FormatDateTime(vValue, 2)
+'	CASE "DATETIME"
+'		FormatValue=FormatDateTime(vValue, 2)&" "&FormatDateTime(vValue, 3)
+'	CASE "NUMERIC"
+'		IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=0
+'		FormatValue=FormatNumber(vValue, iDecimalPositions)
+'	CASE ELSE
+''		IF IsNumeric(vValue) THEN
+''			IF IsNullOrEmpty(iDecimalPositions) THEN iDecimalPositions=0
+''			FormatValue=FormatNumber(vValue, iDecimalPositions)
+''		ELSE
+'		FormatValue=vValue
+''		END IF
+'	END SELECT
+'End Function
 
 Function URLDecode2(sConvert)
     Dim aSplit
@@ -827,6 +827,13 @@ Function URLDecode(sStr)
 		End If
 	Wend
 	URLDecode = str
+End Function
+
+Function FormatValue(sParamValue)
+	bParameterString=NOT(sParamValue="" OR sParamValue="NULL" OR sParamValue="DEFAULT" OR ISNUMERIC(sParamValue) OR testMatch(sParamValue, "^['@]"))
+	IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
+	IF sParamValue="" THEN sParamValue="NULL" END IF
+	FormatValue = sParamValue
 End Function
 
 Function encodeURL(sConvert)
