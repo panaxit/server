@@ -58,6 +58,7 @@ oSiteMap.Async = false:
 		set rsRecordSet=oCn.execute(sSQL)
 		SELECT CASE Err.Number
 		CASE -2147217900 
+            Response.Status = "503 Service Unavailable" '"408 Request Timeout"
             Response.ContentType = "application/json" %>
 			{
 			success: false,
@@ -66,6 +67,7 @@ oSiteMap.Async = false:
 <%			CASE 0
 			'continue
 		CASE ELSE 
+            Response.Status = "503 Service Unavailable" '"408 Request Timeout"
             Response.ContentType = "application/json" %>
 			{
 			success: false,
