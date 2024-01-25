@@ -737,7 +737,12 @@ DO
                                 objFirstChild.save file_location
                                 objFirstChild.save alt_file_location
                             END IF
+                            ON ERROR RESUME NEXT
                             Response.write objFirstChild.xml
+                            IF Err.Number<>0 THEN 'OR r>max_recordsets THEN 
+                                manageError(Err)
+                            END IF
+                            ON ERROR GOTO 0
                         END IF
 		            NEXT
                 ELSE
@@ -746,7 +751,12 @@ DO
                         oXMLFile.save file_location
                         oXMLFile.save alt_file_location
                     END IF
+                    ON ERROR RESUME NEXT
                     response.write oXMLFile.xml
+                    IF Err.Number<>0 THEN 'OR r>max_recordsets THEN 
+                        manageError(Err)
+                    END IF
+                    ON ERROR GOTO 0
                 END IF
             ELSE %>
                 [<% dim f: f=0: DO UNTIL recordset.EOF 
