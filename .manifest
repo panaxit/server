@@ -1,0 +1,12 @@
+{
+  "server": { 
+    "login": "POST server/login.asp",
+    "logout": "server/logout.asp",
+    "submit": "POST server/post.asp",
+    "session": "server/session.asp",
+    "request": "server/request.asp",
+    "sitemap": "server/sitemap.asp",
+    "uploadFile": "server/upload_file.asp",
+    "uploadFileManager": "server/upload_file_manager.asp"
+  }
+}
