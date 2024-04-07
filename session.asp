@@ -50,7 +50,7 @@ END IF
 	, "user_login": "<%= TRIM(Session("user_login")) %>"
 <%  Dim session_name
     For Each session_name in Session.Contents 
-        IF NOT(TypeName(Session.Contents(session_name))="DOMDocument" or TypeName(Session.Contents(session_name))="Null" or TypeName(Session.Contents(session_name))="Nothing" or session_name="StrCnn" or session_name="AccessGranted" or INSTR(session_name,"secret_")>0 or session_name="connection_id") THEN %>, "<%= session_name %>": "<%= TRIM(RegEx_JS_Escape.Replace(Session.Contents(session_name), "\$&")) %>" 
+        IF NOT(TypeName(Session.Contents(session_name))="DOMDocument" or TypeName(Session.Contents(session_name))="Null" or TypeName(Session.Contents(session_name))="Nothing" or session_name="StrCnn" or session_name="debug" or session_name="AccessGranted" or INSTR(session_name,"secret_")>0 or session_name="connection_id") THEN %>, "<%= session_name %>": "<%= TRIM(RegEx_JS_Escape.Replace(Session.Contents(session_name), "\$&")) %>" 
 <%      END IF
     Next %>
 <% IF session("user_id")<>"" THEN  %>

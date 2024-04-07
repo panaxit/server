@@ -509,7 +509,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 sParameterName = oNode.getAttribute("name")
                 sParameterValue = oNode.text
                 sParameterType = "string"
-                set xParameter=xmlParameters.documentElement.selectSingleNode("/*/*[not(@name)][@position='"&i&"']|/*/*[@name='"&sParameterName&"']")
+                set xParameter=xmlParameters.documentElement.selectSingleNode("/*/*[not(@name)][@position='"&i&"']|/*/*[translate(@name,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')='"&UCASE(sParameterName)&"']")
                 SET oOtherNodes = xmlParameters.documentElement.selectNodes("/*/*[@position>"&i&"]")
                 'IF request.querystring(sParameterName).count > 0 THEN
                 '    sParameterValue = request.querystring(sParameterName)
