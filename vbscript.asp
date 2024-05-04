@@ -223,7 +223,7 @@ FUNCTION checkConnection(oCn)
                     %>
 	                {
 	                "success": false,
-	                "message": `No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= REPLACE(SqlRegEx.Replace(Err.Description, ""),"\","\\") %>`
+	                "message": "No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= REPLACE(SqlRegEx.Replace(Err.Description, ""),"\","\\") %>"
 	                }
                 <% 	response.end
                     END IF
@@ -2137,7 +2137,7 @@ End With
 Function login()
 	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
 	oCn.ConnectionTimeout = 5
-	oCn.CommandTimeout = 60
+	oCn.CommandTimeout = 180
 
     Response.CharSet = "ISO-8859-1"
     DIM oConfiguration:	set oConfiguration = Server.CreateObject("MSXML2.DOMDocument"): 
@@ -2194,7 +2194,7 @@ Function login()
         Response.Status = "401 Unauthorized" %>
 	    {
 	    "success": false,
-	    "message": `No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config`
+	    "message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config"
 	    }
     <% 	response.end
     END IF
@@ -2218,7 +2218,7 @@ Function login()
 		sUserLogin = Split(DecodedAuthorization, ":")(0)
 		sUserName = sUserLogin
 		decrypted_password = Split(DecodedAuthorization, ":")(1)
-		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) = 0 then
+		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
 			sPassword = decrypted_password
 		Else
 			sPassword = Hash("md5",decrypted_password)

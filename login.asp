@@ -19,7 +19,7 @@
         , "user_login": "<%= session("user_login") %>"
         , "database_id": "<%= session("database_id") %>"
         , "connection_id": "<%= session("connection_id") %>"
-	    , "message": `<%= REPLACE(REPLACE(SqlRegEx.Replace(ErrorDesc, ""),"\","\\"),CHR(13),"\n") %>`
+	    , "message": "<%= REPLACE(REPLACE(SqlRegEx.Replace(ErrorDesc, ""),"\","\\"),CHR(13),"\n") %>"
 	    }
     <% 	response.end
     End If
@@ -32,7 +32,7 @@
         session("status") = "authorized"
 	    Response.Cookies("AntiPopUps") = REQUEST.FORM("AntiPopUps")
 	    Response.Cookies("AntiPopUps").Expires = Date() + 1
-	    Session.Timeout = 600
+	    'Session.Timeout = 600
 	    session("user_id")=rsResult(0)
         session("expires") = DateAdd("n", session.Timeout, NOW)
         IF session("user_id")="1" THEN
@@ -41,7 +41,7 @@
 
     	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
 	    oCn.ConnectionTimeout = 5
-	    oCn.CommandTimeout = 60
+	    oCn.CommandTimeout = 120
         DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
         If oCn.State = 0 THEN
             ON ERROR RESUME NEXT
