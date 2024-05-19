@@ -125,7 +125,7 @@ Sub manageError(Err)
 
     IF INSTR(content_type,"xml")>0 THEN 
         response.ContentType = "text/xml" 
-        IF SESSION("user_login")="webmaster" OR SESSION("debug") THEN
+        IF SESSION("user_login")="webmaster" OR INSTR(SESSION("user_login"),"@panax.io")<>0 OR SESSION("debug") THEN
             response.write "<!--"&strSQL&"-->"
         END IF
     %>
@@ -434,7 +434,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
             'sQueryParameters=replaceMatch(sQueryParameters, "\@[^=]+=('|\d+|\w+|DEFAULT)", "'$&'")
 
             DIM sSQLXMLParams: sSQLXMLParams="SET NOCOUNT ON; IF OBJECT_ID('#panax.parameterStringToXML') IS NOT NULL BEGIN EXEC #panax.parameterStringToXML '"&REPLACE(sQueryParameters,"'","''")&"' END ELSE BEGIN SELECT CONVERT(XML,'') END"  
-            IF 1=1 or debug THEN
+            IF debug THEN
                 response.ContentType = "text/xml" 
                 response.write "<!--"&sSQLXMLParams&"-->"
             END IF
@@ -639,9 +639,10 @@ ELSE
     strSQL="SELECT "&data_fields&" FROM "&command & " AS Result "&data_predicate
 END IF
 
-strSQL=REPLACE(strSQL, "'NULL'", "NULL")
-strSQL=REPLACE(strSQL, "'null'", "null")
-strSQL="BEGIN TRY EXECUTE AS USER='"&session("user_login")&"' END TRY BEGIN CATCH END CATCH; "& sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL
+strSQL = REPLACE(strSQL, "'NULL'", "NULL")
+strSQL = REPLACE(strSQL, "'null'", "null")
+'strSQL = "BEGIN TRY "EXECUTE AS USER='"&session("user_login")&"' END TRY BEGIN CATCH END CATCH; "
+strSQL = sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL
 
 'strSQL="BEGIN TRY "&strSQL&" END TRY BEGIN CATCH DECLARE @Message NVARCHAR(MAX); SELECT @Message=ERROR_MESSAGE(); EXEC [$Table].[getCustomMessage] @Message=@Message, @Exec=1; END CATCH"
 'ELSE
@@ -654,12 +655,16 @@ strSQL="BEGIN TRY EXECUTE AS USER='"&session("user_login")&"' END TRY BEGIN CATC
 '        strSQL="SET NOCOUNT ON; SELECT "&strSQL&" AS Result"
 '    END IF
 strSQL = replaceMatch(strSQL,"<(DEFAULT|NULL)/>","$1")
-IF 1=0 AND Debug THEN 
+IF INSTR(SESSION("user_login"),"@panax.io")<>0 AND Debug THEN
+    %><!-- <%
     for each x in Request.ServerVariables%>
-<!--  <%= "<B>" & x & ":</b> " & Request.ServerVariables(x) & "<p />" %>
-    <% next %>
-<!--<%= strSQL  %> -->
+ <%= "<B>" & x & ":</b> " & Request.ServerVariables(x) & "<p />" %>
+<%  next %> -->
 <%  response.end
+END IF
+IF INSTR(SESSION("user_login"),"@panax.io")<>0 THEN %>
+<!--<%= strSQL  %> -->
+<%  'response.end
 END IF
 IF INSTR(content_type,"xml")>0 THEN
     Response.CodePage = 65001
