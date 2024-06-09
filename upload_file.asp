@@ -38,7 +38,7 @@ If Form.State = fsCompleted Then 'Completed
 		    {
 		    files: [{}
 <%  DIM File 
-	Response.AddHeader "Content-Type", "text/plain; charset=UTF-8"
+	Response.ContentType = "application/json"
     FOR EACH File IN Form.Files.Items
 	    saveAs=Request.QueryString("saveAs")'TRIM(Form("saveAs").Value)
         extension = fso.GetExtensionName(Form.Files.Item(File.Name).FileName)
@@ -49,7 +49,7 @@ If Form.State = fsCompleted Then 'Completed
 	    'fileName = Form.Files.Items.Item(0).FileName
 	    relativeTargetPath=parent_folder & "/" & Form.Files.Item(File.Name).FileName
 	    ' Ruta donde se va a guardar el file
-	    parent_folder = Server.mapPath("../"&parent_folder)
+	    parent_folder = server.MapPath("\")&"\"&parent_folder
 		If  Not fso.FolderExists(parent_folder) Then
 			CreateFolder parent_folder
 			'fso.CreateFolder (parent_folder)   

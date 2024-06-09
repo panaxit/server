@@ -347,8 +347,8 @@ END IF
 
 'response.write "full_request: "&file_name: response.end
 ON ERROR RESUME NEXT
-DIM parent_folder: parent_folder=server.MapPath(".")&"\..\..\cache\"&SESSION("secret_database_user")&"\"
-DIM alt_parent_folder: alt_parent_folder=server.MapPath(".")&"\..\..\cache\"&SESSION("user_login")&"\"
+DIM parent_folder: parent_folder=server.MapPath("\")&"\cache\"&SESSION("secret_database_user")&"\"
+DIM alt_parent_folder: alt_parent_folder=server.MapPath("\")&"\cache\"&SESSION("user_login")&"\"
 set fso=CreateObject("Scripting.FileSystemObject")
 If  Not fso.FolderExists(parent_folder) Then      
     CreateFolder parent_folder

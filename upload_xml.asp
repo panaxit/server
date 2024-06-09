@@ -30,34 +30,43 @@ IF (file_name="") then
     file_name = user_file_name
 END IF
 IF parent_folder<>"" THEN
-    parent_folder = server.MapPath(".")&"\..\"&parent_folder&"\"
+    parent_folder = server.MapPath("\")&"\"&parent_folder&"\"
 ELSE
-    parent_folder = server.MapPath(".")&"\..\"
+    parent_folder = server.MapPath("\")&"\"
 END IF
 file_location=parent_folder&file_name
 set fso=CreateObject("Scripting.FileSystemObject")
 If  Not fso.FolderExists(parent_folder) Then
-    BuildFullPath parent_folder
-  'fso.CreateFolder (parent_folder)   
+    CreateFolder parent_folder 'fso.CreateFolder (parent_folder)   
 End If
+Response.ContentType = "application/json"
 xmlDoc.save file_location 
+%>
+{
+	"fileName":"<%= file_location %>"
+<%
 IF NOT(file_name = user_file_name) THEN
     user_file_name="user_"&session("user_id")&"_"&REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_")&"_"& Rnd &"."&ext    
-    file_location=server.MapPath(".")&"\..\sessions\save\"&user_file_name
+    parent_folder = server.MapPath("\")&"\..\sessions\save\"
+    If  Not fso.FolderExists(parent_folder) Then
+        CreateFolder parent_folder
+    End If
+    file_location=parent_folder&user_file_name
     xmlDoc.save file_location
 END IF
 %>
-this.fileName="<%= file_location %>";
+	"userFileName":"<%= file_location %>"
 <%
 IF Err.Number<>0 THEN
 	ErrorDesc=Err.Description
     %>
-    this.status='exception';
-    this.message="<%= REPLACE(REPLACE(ErrorDesc, "[Microsoft][ODBC SQL Server Driver][SQL Server]", ""), """", "\""") %>";
+    , "status": "exception"
+    , "message": "<%= REPLACE(REPLACE(ErrorDesc, "[Microsoft][ODBC SQL Server Driver][SQL Server]", ""), """", "\""") %>"
     <%
     response.end
 ELSE
 %>
-	this.status='success'
+	, "status": "success"
 <%
 END IF %>
+}

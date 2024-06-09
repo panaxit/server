@@ -164,14 +164,14 @@ ELSE
 END IF
 
 DIM file_location, parent_folder
-parent_folder=server.MapPath(".")&"\..\sessions\save\"
+parent_folder=server.MapPath("\")&"\sessions\save\"
 file_location=parent_folder&"user_"&session("user_id")&"_"&REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_")&".xml"
 set fso=CreateObject("Scripting.FileSystemObject")
 If  Not fso.FolderExists(parent_folder) Then      
   CreateFolder(parent_folder)
 End If
 
-'response.write server.MapPath(".")&"\custom\sessions\save\user_"&session("user_id")&"_"&REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_")&".xml"
+'response.write server.MapPath("\")&"\custom\sessions\save\user_"&session("user_id")&"_"&REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_")&".xml"
 xmlDoc.save file_location
 IF xmlDoc.selectSingleNode("//x:submit/*/*") IS NOTHING THEN
     Response.Status = "304 Not Modified"
@@ -266,7 +266,7 @@ DO
             ELSE %>
                 this.contentType = '<%= Response.ContentType %>'
 	            this.status='success'
-	            this.recordSet=new Array()
+	            this.recordSet=new Array()+
         <%	        DO UNTIL recordset.EOF %>
                 var record = {}
             <%      FOR EACH oField IN recordset.fields 
