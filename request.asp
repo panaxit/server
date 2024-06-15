@@ -655,16 +655,16 @@ strSQL = sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL
 '        strSQL="SET NOCOUNT ON; SELECT "&strSQL&" AS Result"
 '    END IF
 strSQL = replaceMatch(strSQL,"<(DEFAULT|NULL)/>","$1")
-IF INSTR(SESSION("user_login"),"@panax.io")<>0 AND Debug THEN
+IF INSTR(SESSION("user_login"),"@panax.io")<>0 THEN %>
+<!--<%= strSQL  %> -->
+<% 
+END IF
+IF 1=0 AND INSTR(SESSION("user_login"),"@panax.io")<>0 AND Debug THEN
     %><!-- <%
     for each x in Request.ServerVariables%>
  <%= "<B>" & x & ":</b> " & Request.ServerVariables(x) & "<p />" %>
 <%  next %> -->
 <%  response.end
-END IF
-IF INSTR(SESSION("user_login"),"@panax.io")<>0 THEN %>
-<!--<%= strSQL  %> -->
-<%  'response.end
 END IF
 IF INSTR(content_type,"xml")>0 THEN
     Response.CodePage = 65001
