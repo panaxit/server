@@ -223,7 +223,7 @@ FUNCTION checkConnection(oCn)
                     %>
 	                {
 	                "success": false,
-	                "message": "No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= REPLACE(SqlRegEx.Replace(Err.Description, ""),"\","\\") %>"
+	                "message": "No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= RegEx_JS_Escape.Replace(SqlRegEx.Replace(Err.Description, ""), "\$&") %>"
 	                }
                 <% 	response.end
                     END IF
@@ -2129,6 +2129,14 @@ end function
 Dim SqlRegEx: Set SqlRegEx = New RegExp
 With SqlRegEx
     .Pattern = "(\[[^\[]*\])+"
+    .IgnoreCase = True
+    .Global = True
+    .MultiLine = True
+End With
+
+Dim RegEx_JS_Escape: Set RegEx_JS_Escape = New RegExp
+With RegEx_JS_Escape
+    .Pattern = """|\\"
     .IgnoreCase = True
     .Global = True
     .MultiLine = True

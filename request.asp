@@ -130,7 +130,7 @@ Sub manageError(Err)
         END IF
     %>
 <?xml-stylesheet type="text/xsl" href="message.xslt" role="message" target="body" action="append"?>
-<x:message xmlns:x="http://panax.io/xover" x:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="exception"><%= REPLACE(REPLACE(message,">","&gt;"),"<","&lt;") %></x:message>
+<xo:message xmlns:xo="http://panax.io/xover" xo:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="exception"><%= REPLACE(REPLACE(message,">","&gt;"),"<","&lt;") %></xo:message>
 <%  ELSEIF INSTR(content_type,"json")>0 THEN
     Response.ContentType = "application/json" %>
 //<%= strSQL  %>
@@ -188,7 +188,7 @@ Response.CharSet = "ISO-8859-1"
 DIM api_key: api_key = Request.ServerVariables("HTTP_API_KEY") 'TODO: Implement
 DIM root_node: root_node = Request.ServerVariables("HTTP_X_ROOT_NODE")
 IF root_node="" THEN
-    root_node="x:response"
+    root_node="xo:response"
 END IF
 DIM page_size: page_size = Request.ServerVariables("HTTP_X_PAGE_SIZE")
 IF page_size="" THEN
@@ -587,7 +587,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         Response.Status = "412 Precondition Failed" 
 %>
 <?xml-stylesheet type="text/xsl" href="prompt.xslt" role="modal" target="@#shell main" ?>
-<x:prompt xmlns:x="http://panax.io/xover"><%= xmlOutputParameters.xml %></x:prompt>
+<xo:prompt xmlns:xo="http://panax.io/xover"><%= xmlOutputParameters.xml %></xo:prompt>
 <%
         response.end
     END IF
@@ -622,16 +622,16 @@ END IF
 IF INSTR(sType,"P")<>0 THEN
     strSQL="EXEC "&command &"; "
     IF sOutputParams<>"" THEN 
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('x:parameters'), TYPE"
+        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('xo:parameters'), TYPE"
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
     IF namespaces<>"" THEN
         namespaces = ", " & namespaces
     END IF
-    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/source' as data, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ), #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:resultCount] = COUNT(1) OVER(), * FROM ( SELECT [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), [@meta:resultCount]=(SELECT TOP 1 [@meta:resultCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('x:r'), TYPE) FOR XML PATH('data:rows'), TYPE"
+    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/source' as __data, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ), #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:resultCount] = COUNT(1) OVER(), * FROM ( SELECT [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), [@meta:resultCount]=(SELECT TOP 1 [@meta:resultCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('xo:r'), TYPE) FOR XML PATH('__data:rows'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     IF INSTR(content_type,"xml")>0 THEN
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML PATH(''), TYPE) FOR XML PATH('x:response'), TYPE"
+        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as x, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML PATH(''), TYPE) FOR XML PATH('xo:response'), TYPE"
     ELSE
         strSQL="SELECT "&command & data_predicate
     END IF
@@ -706,7 +706,7 @@ DO
                 END IF
                 IF oXMLFile.documentElement IS NOTHING THEN
                     IF Request.ServerVariables("HTTP_ROOT_NODE")<>"" THEN %>
-<<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:x="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
+<<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:xo="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
 <%                  ELSE
                             Response.Status = "204 No Content"
                     END IF
@@ -721,7 +721,7 @@ DO
                 END IF
                 'response.write "  Cache-Response: "&Request.ServerVariables("Cache-Response")&"-->"
                 'response.write "<!-- Cache-Response: "&Request.ServerVariables("HTTP_CACHE_RESPONSE")&"-->"
-                DIM x_parameters: set x_parameters = oXMLFile.selectNodes("/x:parameters/*")
+                DIM x_parameters: set x_parameters = oXMLFile.selectNodes("/xo:parameters/*")
                 IF x_parameters.length>0 THEN
                     FOR EACH oNode IN x_parameters
                         ON ERROR RESUME NEXT
@@ -793,7 +793,7 @@ DO
             Response.CharSet = "UTF-8"
             response.ContentType = "text/xml" 
 %><?xml-stylesheet type="text/xsl" href="message.xslt" role="message" target="body" action="append" ?>
-<x:message xmlns:x="http://panax.io/xover" x:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="success">El proceso ha terminado</x:message>
+<xo:message xmlns:xo="http://panax.io/xover" xo:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="success">El proceso ha terminado</xo:message>
 <% ELSE %>
 	        this.status='success'
 	        this.recordSet=new Array()<% 

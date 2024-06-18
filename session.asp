@@ -19,7 +19,7 @@ End With
 
 Dim RegEx_JS_Escape: Set RegEx_JS_Escape = New RegExp
 With RegEx_JS_Escape
-    .Pattern = """\\"
+    .Pattern = """|\\"
     .IgnoreCase = True
     .Global = True
     .MultiLine = True

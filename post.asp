@@ -63,7 +63,7 @@ Sub manageError(Err)
         END IF
 %>
 <?xml-stylesheet type="text/xsl" href="message.xslt" role="message" target="body" action="append"?>
-<x:message xmlns:x="http://panax.io/xover" x:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="exception"><%= REPLACE(REPLACE(message,">","&gt;"),"<","&lt;") %></x:message>
+<xo:message xmlns:xo="http://panax.io/xover" xo:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="exception"><%= REPLACE(REPLACE(message,">","&gt;"),"<","&lt;") %></xo:message>
 <%  ELSEIF INSTR(Response.ContentType,"json")>0 THEN %>
 //<%= strSQL  %>
 <%  ELSE 
@@ -140,27 +140,27 @@ xmlDoc.load(request)
 'xmlDoc.load(server.MapPath("..\panax\post from v12 entity - ejemplo Puesto.xml"))
 
 IF ISNULL(session("user_id")) = FALSE THEN
-    xmlDoc.selectSingleNode("//x:source/*").setAttribute "session:user_id", session("user_id")
+    xmlDoc.selectSingleNode("//xo:source/*").setAttribute "session:user_id", session("user_id")
 END IF
 DIM xmlSubmit
 Set xmlSubmit=Server.CreateObject("Microsoft.XMLDOM")
 xmlSubmit.async="false"
-IF xmlDoc.selectSingleNode("//x:submit/*") IS NOTHING THEN
+IF xmlDoc.selectSingleNode("//xo:submit/*") IS NOTHING THEN
     DIM xmlSource
     Set xmlSource=Server.CreateObject("Microsoft.XMLDOM")
     xmlSource.async="false"
-    xmlSource.loadXML(xmlDoc.selectSingleNode("//x:source/*").xml)
+    xmlSource.loadXML(xmlDoc.selectSingleNode("//xo:source/*").xml)
 
     Set xslDoc=Server.CreateObject("Microsoft.XMLDOM")
     xslDoc.async="false"
     xslDoc.load(server.MapPath("..\panax\post.v12.xslt"))
 
-    xmlSubmit.loadXML("<x:submit xmlns:x=""http://panax.io/xover"">"&xmlSource.transformNode(xslDoc)&"</x:submit>")
+    xmlSubmit.loadXML("<xo:submit xmlns:x=""http://panax.io/xover"">"&xmlSource.transformNode(xslDoc)&"</xo:submit>")
 
-    dim root_node:  set root_node = xmlDoc.selectSingleNode("//x:post")
+    dim root_node:  set root_node = xmlDoc.selectSingleNode("//xo:post")
     root_node.insertBefore xmlSubmit.firstChild, root_node.firstChild
 ELSE
-    xmlSubmit.loadXML(xmlDoc.selectSingleNode("//x:submit").xml)
+    xmlSubmit.loadXML(xmlDoc.selectSingleNode("//xo:submit").xml)
 END IF
 
 DIM file_location, parent_folder
@@ -173,13 +173,13 @@ End If
 
 'response.write server.MapPath("\")&"\custom\sessions\save\user_"&session("user_id")&"_"&REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_")&".xml"
 xmlDoc.save file_location
-IF xmlDoc.selectSingleNode("//x:submit/*/*") IS NOTHING THEN
+IF xmlDoc.selectSingleNode("//xo:submit/*/*") IS NOTHING THEN
     Response.Status = "304 Not Modified"
     Response.End
 END IF
 
 DIM strSQL
-'strSQL="SET NOCOUNT ON; DECLARE @success BIT; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(URLDecode(xmlDoc.selectSingleNode("//x:submit/*").xml), "&", "&amp;"), "'", "''")&"', @source='"&REPLACE(REPLACE(URLDecode(xmlDoc.selectSingleNode("//x:source/*").xml), "&", "&amp;"), "'", "''")&"', @user_id="& session("user_id") &", @exec=1, @success=@success;-- SELECT @success"
+'strSQL="SET NOCOUNT ON; DECLARE @success BIT; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(URLDecode(xmlDoc.selectSingleNode("//xo:submit/*").xml), "&", "&amp;"), "'", "''")&"', @source='"&REPLACE(REPLACE(URLDecode(xmlDoc.selectSingleNode("//xo:source/*").xml), "&", "&amp;"), "'", "''")&"', @user_id="& session("user_id") &", @exec=1, @success=@success;-- SELECT @success"
 
 'base_folder="D:\Dropbox (Personal)\Proyectos\Petro\FilesRepository"
 DIM xRepository: 
@@ -195,7 +195,7 @@ user_id = session("user_id")
 if user_id = "" or ISNULL(user_id) = TRUE then
     user_id = "-1"
 end if
-strSQL="SET NOCOUNT ON; DECLARE @success BIT, @transaction_id CHAR(36), @response XML; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:submit/*").xml, "&", "&amp;"), "'", "''"),"C:\fakepath",base_folder)&"', @source='"&REPLACE(REPLACE(xmlDoc.selectSingleNode("//x:source/*").xml, "&", "&amp;"), "'", "''")&"', @user_id="& user_id &", @exec=1, @success=@success OUTPUT, @transaction_id=@transaction_id OUTPUT, @response=@response OUTPUT; SELECT success=@success, transaction_id=@transaction_id, @response FOR XML PATH('response'), type"
+strSQL="SET NOCOUNT ON; DECLARE @success BIT, @transaction_id CHAR(36), @response XML; EXEC [#panax].[RegisterTransaction] '"&REPLACE(REPLACE(REPLACE(xmlDoc.selectSingleNode("//xo:submit/*").xml, "&", "&amp;"), "'", "''"),"C:\fakepath",base_folder)&"', @source='"&REPLACE(REPLACE(xmlDoc.selectSingleNode("//xo:source/*").xml, "&", "&amp;"), "'", "''")&"', @user_id="& user_id &", @exec=1, @success=@success OUTPUT, @transaction_id=@transaction_id OUTPUT, @response=@response OUTPUT; SELECT success=@success, transaction_id=@transaction_id, @response FOR XML PATH('response'), type"
 
 strSQL="BEGIN TRY "&strSQL&" END TRY BEGIN CATCH DECLARE @Message NVARCHAR(MAX); SELECT @Message=ERROR_MESSAGE(); EXEC [$Table].[getCustomMessage] @Message=@Message, @Exec=1; END CATCH"
 
@@ -243,7 +243,7 @@ DO
                     oXMLFile.LoadXML(recordset(0))
                     IF oXMLFile.documentElement IS NOTHING THEN
                         IF Request.ServerVariables("HTTP_ROOT_NODE")<>"" THEN %>
-    <<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:x="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
+    <<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:xo="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
     <%                  ELSE
                              Response.Status = "204 No Content"
                         END IF
@@ -295,7 +295,7 @@ DO
             Response.CharSet = "UTF-8"
             response.ContentType = "text/xml" 
         %><?xml-stylesheet type="text/xsl" href="message.xslt" role="message" target="body" action="append"?>
-<x:message xmlns:x="http://panax.io/xover" x:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="success">El proceso ha terminado</x:message>
+<xo:message xmlns:xo="http://panax.io/xover" xo:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="success">El proceso ha terminado</xo:message>
         <% ELSE %>
 	        this.status='success'
 	        this.recordSet=new Array()<% 
