@@ -17,13 +17,6 @@ With RegEx
     .MultiLine = True
 End With
 
-Dim RegEx_JS_Escape: Set RegEx_JS_Escape = New RegExp
-With RegEx_JS_Escape
-    .Pattern = """|\\"
-    .IgnoreCase = True
-    .Global = True
-    .MultiLine = True
-End With
 IF Request.Form.Count>0 THEN 
     FOR EACH key IN Request.Form
         value=Request.Form(key)
