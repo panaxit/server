@@ -19,7 +19,7 @@
         , "user_login": "<%= session("user_login") %>"
         , "database_id": "<%= session("database_id") %>"
         , "connection_id": "<%= session("connection_id") %>"
-	    , "message": "<%= REPLACE(RegEx_JS_Escape.Replace(SqlRegEx.Replace(ErrorDesc, ""),"\$&"),CHR(13),"\n") %>"
+	    , "message": "<%= REPLACE(RegEx_JS_Escape.Replace(SqlRegEx.Replace(ErrorDesc, ""),"\$&"),CHR(10),"\n") %>"
 	    }
     <% 	response.end
     End If
