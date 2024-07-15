@@ -38,17 +38,18 @@
         IF session("user_id")="1" THEN
             session("debug") = TRUE
         END IF
-
     	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
-	    oCn.ConnectionTimeout = 5
-	    oCn.CommandTimeout = 120
-        DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
-        If oCn.State = 0 THEN
-            ON ERROR RESUME NEXT
-            oCn.Open StrCnn
-        END IF
+        If (SESSION("secret_server_id")<>"") Then
+	        oCn.ConnectionTimeout = 5
+	        oCn.CommandTimeout = 120
+            DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
+            If oCn.State = 0 THEN
+                ON ERROR RESUME NEXT
+                oCn.Open StrCnn
+            END IF
 
-	    oCn.execute "IF EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.ROUTINES IST WHERE routine_schema IN ('$Application') AND ROUTINE_NAME IN ('OnStartUp')) BEGIN EXEC [$Application].OnStartUp END"
+	        oCn.execute "IF EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.ROUTINES IST WHERE routine_schema IN ('$Application') AND ROUTINE_NAME IN ('OnStartUp')) BEGIN EXEC [$Application].OnStartUp END"
+        End If
     %>
     	    {
 	    "success": true

@@ -1,4 +1,6 @@
 <%
+Const adInteger = 3
+Const adVarChar = 200
 Function Base64Encode(sText)
     Dim oXML, oNode
 
@@ -187,50 +189,71 @@ function asyncCall(strUrl)
 end function 
 
 FUNCTION checkConnection(oCn)
-	DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
-    If oCn.State = 0 THEN
-        ON ERROR RESUME NEXT
-        oCn.Open StrCnn
-    End if
-    IF NOT(Err.Number=0 AND (TRIM(SESSION("secret_server_id"))<>"" AND TRIM(SESSION("secret_database_user"))<>"" AND TRIM(SESSION("secret_database_password"))<>"" AND TRIM(SESSION("secret_database_name"))<>"")) THEN 
-		Session("AccessGranted") = FALSE
-        Session("status") = "unauthorized"
-        DIM error_description
-        IF (Err.number<>0) THEN
-            error_description = Err.Description
-        ELSEIF oCn.errors.count<>0 THEN
-            error_description = "Can't connect"
-        END IF
-	    ErrorDesc=SqlRegEx.Replace(error_description, "")
-        'response.write Err.Number&": "&Err.Description
-        IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 OR INSTR(ErrorDesc,"ConnectionWrite")>0 THEN
-            AsyncCall "http://localhost:8080/startSQL"
-            'AsyncCall Left(currentLocation, instrRev(currentLocation, "/"))&"reconnect.asp"
-            Err.Clear
-            Sleep(3)
-            If oCn.State = 0 Then
-                'response.write "Here 1 "&oCn.State&"<br/>"
-                ON ERROR RESUME NEXT
-                oCn.Open StrCnn
-                IF Err.Number<>0 THEN 
-                    'response.write "Here 2 "&oCn.State
-                    Response.ContentType = "application/json"
-                    Response.CharSet = "ISO-8859-1"
-	                ErrorDesc=SqlRegEx.Replace(Err.Description, "")
-                    'response.Write ErrorDesc
-                    IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 THEN
-                        Response.Status = "503 Service Unavailable" '"408 Request Timeout"
-                    %>
-	                {
-	                "success": false,
-	                "message": "No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= RegEx_JS_Escape.Replace(SqlRegEx.Replace(Err.Description, ""), "\$&") %>"
-	                }
-                <% 	response.end
-                    END IF
-                END IF
-            End If
-        END IF
-    END IF
+	IF LCASE(SESSION("secret_engine")) = "google" THEN
+		DIM google_response
+		google_response = apiCall("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" & session("secret_token"))
+		Set xml_google_response = JSONToXML(google_response)
+
+		IF NOT(xml_google_response.documentElement.selectSingleNode("email").text = session("user_login")) THEN
+			session("user_login") = ""
+		END IF
+		IF session("user_login") = "" THEN
+			Session("AccessGranted") = FALSE
+			session("status") = "unauthorized"
+	        Response.ContentType = "application/json"
+			Response.CharSet = "ISO-8859-1"
+			Response.Status = "401 Unauthorized" %>
+			{
+			"message": "Conexión no autorizada"
+			}
+		<% 	response.end
+		END IF
+	ELSE
+		DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
+		If oCn.State = 0 THEN
+			ON ERROR RESUME NEXT
+			oCn.Open StrCnn
+		End if
+		IF NOT(Err.Number=0 AND (TRIM(SESSION("secret_server_id"))<>"" AND TRIM(SESSION("secret_database_user"))<>"" AND TRIM(SESSION("secret_database_password"))<>"" AND TRIM(SESSION("secret_database_name"))<>"")) THEN 
+			Session("AccessGranted") = FALSE
+			Session("status") = "unauthorized"
+			DIM error_description
+			IF (Err.number<>0) THEN
+				error_description = Err.Description
+			ELSEIF oCn.errors.count<>0 THEN
+				error_description = "Can't connect"
+			END IF
+			ErrorDesc=SqlRegEx.Replace(error_description, "")
+			'response.write Err.Number&": "&Err.Description
+			IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 OR INSTR(ErrorDesc,"ConnectionWrite")>0 THEN
+				AsyncCall "http://localhost:8080/startSQL"
+				'AsyncCall Left(currentLocation, instrRev(currentLocation, "/"))&"reconnect.asp"
+				Err.Clear
+				Sleep(3)
+				If oCn.State = 0 Then
+					'response.write "Here 1 "&oCn.State&"<br/>"
+					ON ERROR RESUME NEXT
+					oCn.Open StrCnn
+					IF Err.Number<>0 THEN 
+						'response.write "Here 2 "&oCn.State
+						Response.ContentType = "application/json"
+						Response.CharSet = "ISO-8859-1"
+						ErrorDesc=SqlRegEx.Replace(Err.Description, "")
+						'response.Write ErrorDesc
+						IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 THEN
+							Response.Status = "503 Service Unavailable" '"408 Request Timeout"
+	%>
+						{
+						"success": false,
+						"message": "No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= RegEx_JS_Escape.Replace(SqlRegEx.Replace(Err.Description, ""), "\$&") %>"
+						}
+					<% 	response.end
+						END IF
+					END IF
+				End If
+			END IF
+		END IF
+	END IF
 END FUNCTION
 
 
@@ -2090,7 +2113,85 @@ FUNCTION lastDayOfMonth(dDate)
 	lastDayOfMonth=DATEADD("d", -1, DATEADD("m", 1, firstDayOfMonth(dDate)))
 END FUNCTION
 
- 
+Function JSONToXML(jsonString)
+    Dim scriptControl, jsonObject, intermediateXML, finalXML, xsltRawToXML, xsltPrettifyJSON
+    ' Note: VBScript regex is limited compared to SQL Server's, so use the Microsoft VBScript Regular Expressions object
+    intermediateXML = TRIM(jsonString)
+
+    Dim regex, matches, match
+    ' Initialize regex object
+    Set regex = New RegExp
+    regex.Global = True
+	regex.Pattern = "[ \r\n]+$"
+    intermediateXML = regex.Replace(intermediateXML, "")
+
+    ' Step 2: Replace JSON special characters to form intermediate XML-like format
+    intermediateXML = Replace(intermediateXML, Chr(9), "<t/>") ' Replace tab characters
+    intermediateXML = Replace(intermediateXML, Chr(10) & Chr(13), "<r/>") ' Replace newline characters
+    intermediateXML = Replace(intermediateXML, Chr(13), "<r/>") ' Replace carriage returns
+    intermediateXML = Replace(intermediateXML, ",", "<c/>") ' Replace commas
+    intermediateXML = Replace(intermediateXML, "&", "&amp;") ' Replace ampersands
+
+    ' Step 2: Perform regex replacements
+
+    ' Replace \(.)
+    regex.Pattern = "\\(.)"
+    intermediateXML = regex.Replace(intermediateXML, "<e>$1</e>")
+
+    intermediateXML = Replace(intermediateXML, "[", "<l>")
+    intermediateXML = Replace(intermediateXML, "]", "</l>")
+    intermediateXML = Replace(intermediateXML, "{", "<o>")
+    intermediateXML = Replace(intermediateXML, "}", "</o>")
+    intermediateXML = Replace(intermediateXML, " ", "<s/>")
+
+    ' Replace "([^"]+?)":\s*
+    regex.Pattern = """([^""]+?)"":\s*"
+    intermediateXML = regex.Replace(intermediateXML, "<a>$1</a>")
+
+    ' Replace <l>([^<]+)</l>
+    regex.Pattern = "<l>([^<]+)</l>"
+    intermediateXML = regex.Replace(intermediateXML, "<l>$1</l>")
+
+    ' Step 3: Apply the raw-to-XML XSLT transformation
+    Set xsltRawToXML = Server.CreateObject("MSXML2.FreeThreadedDOMDocument")
+    xsltRawToXML.async = False
+    xsltRawToXML.load(server.MapPath(".")&"\json_to_raw_xml.xslt")
+    Set finalXML = Server.CreateObject("MSXML2.DOMDocument")
+    finalXML.async = False
+    finalXML.loadXML(intermediateXML)
+    finalXML.loadXML(finalXML.transformNode(xsltRawToXML))
+
+    ' Step 4: Apply the prettify-JSON XSLT transformation
+    Set xsltPrettifyJSON = Server.CreateObject("MSXML2.FreeThreadedDOMDocument")
+    xsltPrettifyJSON.async = False
+    xsltPrettifyJSON.load(server.MapPath(".")&"\json_to_xml.xslt")
+    finalXML.loadXML(finalXML.transformNode(xsltPrettifyJSON))
+
+    ' Normalize namespaces and return final XML
+    finalXML.setProperty "SelectionNamespaces", "xmlns:xsl='http://www.w3.org/1999/XSL/Transform' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xson='http://panax.io/xson'"
+    'finalXML.normalizeNamespaces
+    Set JSONToXML = finalXML
+
+    ' Clean up
+    Set scriptControl = Nothing
+    Set jsonObject = Nothing
+    Set xsltRawToXML = Nothing
+    Set xsltPrettifyJSON = Nothing
+    Set finalXML = Nothing
+End Function
+
+function apiCall(strUrl)
+    Set xmlHttp = Server.Createobject("MSXML2.ServerXMLHTTP")
+    xmlHttp.Open "GET", strUrl, False
+    xmlHttp.setRequestHeader "User-Agent", "asp httprequest"
+    xmlHttp.setRequestHeader "content-type", "application/x-www-form-urlencoded"
+    xmlHttp.Send
+    'response.write xmlHttp.responseText
+    'xmlHttp.abort()
+	apiCall = xmlhttp.ResponseText
+    set xmlHttp = Nothing   
+end function 
+
 function asyncCall(strUrl)
     Set xmlHttp = Server.Createobject("MSXML2.ServerXMLHTTP")
     xmlHttp.Open "GET", strUrl, False
@@ -2156,6 +2257,9 @@ Function login()
 		oConfiguration.Load(Server.MapPath("../../.config/system.config"))
 		IF oConfiguration.documentElement IS NOTHING THEN
 			oConfiguration.Load(Server.MapPath("../../config/system.config"))
+			IF oConfiguration.documentElement IS NOTHING THEN
+				oConfiguration.Load(Server.MapPath("../../../.config/system.config"))
+			END IF
 		END IF
 	END IF
 
@@ -2191,9 +2295,9 @@ Function login()
     END IF
 
     DIM oDatabase: 
-    SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/Database["&sConnectionString&"]")
+    SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*["&sConnectionString&"]")
     IF oDatabase IS NOTHING THEN
-        SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/Database[@Id=../@Default or string(../@Default)='' and (@Id='default' or @Id='main')]")
+        SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*[@Id=../@Default or string(../@Default)='' and (@Id='default' or @Id='main')]")
     END IF
 
     IF oDatabase IS NOTHING THEN
@@ -2236,33 +2340,60 @@ Function login()
 		sUserName = sUserLogin
 		sPassword = URLDecode(request.form("Password"))
 	End if
-    IF ISNULL(sDatabaseUser) THEN
+	session("user_login") = sUserName
+
+	DIM oUser
+	SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
+	Set rsResult = Server.CreateObject("ADODB.RecordSet")
+    SESSION("secret_engine") = sDatabaseEngine
+	IF oUser IS NOTHING THEN
+		Response.ContentType = "application/json"
+		Response.CharSet = "ISO-8859-1"
+		Response.Status = "401 Unauthorized" %>
+		{
+		"success": false,
+		"message": "Usuario no autorizado"
+		}
+<% 	    response.end
+	END IF
+    IF LCASE(SESSION("secret_engine")) = "google" THEN
+		session("secret_token") = sPassword
+		checkConnection(oCn)
+		Session("AccessGranted") = TRUE
+		session("status") = "authorized"
+
+		' Define the structure of the recordset (fields)
+		rsResult.Fields.Append "user_id", adInteger
+		rsResult.Fields.Append "user_name", adVarChar, 255
+
+		' Open the recordset for editing
+		rsResult.Open
+
+		' Add records to the recordset
+		rsResult.AddNew
+		rsResult("user_id").Value = 99999
+		rsResult("user_name").Value = sUserName
+		rsResult.Update
+		'response.write "strSQL: "&strSQL: response.end
+
+		Set Login = rsResult
+		Exit Function
+	ELSEIF ISNULL(sDatabaseUser) THEN
         IF sUserName="" AND sPassword="" AND sDefaultUser<>"" THEN
             sUserName = sDefaultUser
         END IF
 
-        DIM oUser: SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
-        IF oUser IS NOTHING THEN
-            Response.ContentType = "application/json"
-            Response.CharSet = "ISO-8859-1"
-            Response.Status = "401 Unauthorized" %>
-	    {
-	    "success": false,
-	    "message": "No se encontró el usuario para la instancia"
-	    }
-    <% 	    response.end
-        END IF
-        sDatabaseUser = oUser.getAttribute("InstanceUser")
-        IF ISNULL(sDatabaseUser) THEN
-            sDatabaseUser = sUserName
-        END IF
-        IF sPassword="" AND NOT ISNULL(oUser.getAttribute("Password")) THEN
-            sPassword = oUser.getAttribute("Password")
-        END IF
+		sDatabaseUser = oUser.getAttribute("InstanceUser")
+		IF ISNULL(sDatabaseUser) THEN
+			sDatabaseUser = sUserName
+		END IF
+		IF sPassword="" AND NOT ISNULL(oUser.getAttribute("Password")) THEN
+			sPassword = oUser.getAttribute("Password")
+		END IF
 		IF NOT ISNULL(oUser.getAttribute("InstancePassword")) THEN
-            sDatabasePassword 	= oUser.getAttribute("InstancePassword")
-        END IF		
-    ELSE
+			sDatabasePassword 	= oUser.getAttribute("InstancePassword")
+		END IF
+	ELSE
         IF sUserName<>"webmaster" THEN
             sDatabaseUser = sUserName
             'sDatabasePassword = "40A965D05136639974C40FAF6CFDF21D"
@@ -2294,7 +2425,6 @@ Function login()
 		session("user_login") = sUserName
 		strSQL="EXEC [#Security].Authenticate '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "'"
 		'response.write "strSQL: "&strSQL: response.end
-		Set rsResult = Server.CreateObject("ADODB.RecordSet")
 		rsResult.CursorLocation 	= 3
 		rsResult.CursorType 		= 3
 		set rsResult = oCn.Execute(strSQL)
@@ -2320,4 +2450,4 @@ Function login()
 		Set Login = rsResult
 	END IF
 End Function
-%>
+    %>
