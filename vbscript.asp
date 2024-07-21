@@ -193,9 +193,8 @@ FUNCTION checkConnection(oCn)
 		DIM google_response
 		google_response = apiCall("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" & session("secret_token"))
 		Set xml_google_response = JSONToXML(google_response)
-
-		IF NOT(xml_google_response.documentElement.selectSingleNode("email").text = session("user_login")) THEN
-			session("user_login") = ""
+		IF NOT (xml_google_response.documentElement.selectSingleNode("error_description") IS NOTHING) OR NOT(xml_google_response.documentElement.selectSingleNode("email").text = session("user_login")) THEN
+			session.Abandon
 		END IF
 		IF session("user_login") = "" THEN
 			Session("AccessGranted") = FALSE
