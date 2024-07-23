@@ -594,6 +594,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
 ELSE
     command = sRoutineName
 END IF 
+
 FOR EACH sParameter IN request.querystring
 	IF INSTR(sType,"T")<>0 AND NOT(testMatch(sParameter, "^\@|^FROM$|^AND$|^OR$|^WHERE$")) THEN
         'IF sParameters<>"" THEN
@@ -751,12 +752,12 @@ DO
                         END IF
 		            NEXT
                 ELSE
+                    ON ERROR RESUME NEXT
                     IF 1=1 or Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
                         'response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
                         oXMLFile.save file_location
                         oXMLFile.save alt_file_location
                     END IF
-                    ON ERROR RESUME NEXT
                     response.write oXMLFile.xml
                     IF Err.Number<>0 THEN 'OR r>max_recordsets THEN 
                         manageError(Err)
