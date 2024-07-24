@@ -140,7 +140,8 @@ Sub manageError(Err)
     <%  IF 1=1 OR session("debug")=TRUE THEN %>
     , "source": "<%= REPLACE(strSQL, """", "\""") %>"}
     <%  END IF 
-    END IF 
+    END IF
+    ON ERROR GOTO 0
 End Sub
 
 ON ERROR RESUME NEXT
@@ -439,6 +440,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 response.write "<!--"&sSQLXMLParams&"-->"
             END IF
             'response.write sSQLXMLParams: response.end
+            ON ERROR RESUME NEXT
             SET rsParameters = oCn.Execute(sSQLXMLParams)
             IF Err.Number<>0 THEN
                 manageError(Err)
@@ -468,6 +470,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
             response.write "<!--"&sSQLParams&"-->" & vbcrlf
             'response.end
         END IF
+        ON ERROR RESUME NEXT
         SET rsParameters = oCn.Execute(sSQLParams)
         IF Err.Number<>0 THEN
             manageError(Err)
