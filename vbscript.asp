@@ -2275,6 +2275,15 @@ Function login()
 		sConnectionId=request.serverVariables("HTTP_HOST")
     END IF
 
+	DIM referer: referer = REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://","")
+	IF referer<>"" THEN
+		If Right(referer, 1) = "/" Then
+			referer = Left(referer, Len(referer) - 1)
+		End If
+		SESSION("referer") = referer
+	END IF
+	SESSION("connection_id") = sConnectionId
+
     IF oConfiguration.documentElement IS NOTHING THEN
         Response.ContentType = "application/json"
         Response.CharSet = "ISO-8859-1"
@@ -2287,14 +2296,16 @@ Function login()
     END IF
 
     DIM sConnectionString
-    IF sConnectionId<>"" THEN
+    IF referer<>"" THEN
+	    sConnectionString="@Id='"&referer&"' or Alias/text()='"&referer&"' or @Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
+    ELSEIF sConnectionId<>"" THEN
 	    sConnectionString="@Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
     ELSE
 	    sConnectionString="1=0"
     END IF
 
     DIM oDatabase: 
-    SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*["&sConnectionString&"]")
+    SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")
     IF oDatabase IS NOTHING THEN
         SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*[@Id=../@Default or string(../@Default)='' and (@Id='default' or @Id='main')]")
     END IF

@@ -15,7 +15,12 @@ With RegEx
     .Global = True
     .MultiLine = True
 End With
-
+IF INSTR(Request.ServerVariables("HTTP_ACCEPT"), "text/html") AND Session("user_login") = "uriel@panax.io" THEN
+    Response.ContentType = "text/html"
+    for each x in Request.ServerVariables
+      response.write("<!--" & x & ": " & Request.ServerVariables(x) & "-->" & vbcrlf)
+    next
+END IF
 IF Request.Form.Count>0 THEN 
     FOR EACH key IN Request.Form
         value=Request.Form(key)
@@ -40,6 +45,8 @@ END IF
 %>{ 
 "userId": "<%= session("user_id") %>"
 , "user_login": "<%= TRIM(Session("user_login")) %>"
+, "referer": "<%= request.serverVariables("referer") %>"
+, "connection_id": "<%= SESSION("connection_id") %>"
 <%  Dim session_name
 For Each session_name in Session.Contents 
     IF NOT(TypeName(Session.Contents(session_name))="DOMDocument" or TypeName(Session.Contents(session_name))="Null" or TypeName(Session.Contents(session_name))="Nothing" or session_name="StrCnn" or session_name="debug" or session_name="AccessGranted" or INSTR(session_name,"secret_")>0 or session_name="connection_id") THEN %>, "<%= session_name %>": "<%= TRIM(RegEx_JS_Escape.Replace(Session.Contents(session_name), "\$&")) %>" 

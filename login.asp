@@ -17,7 +17,7 @@
 	    , "success": false
 	    , "status": "<%= session("status") %>"
         , "user_login": "<%= session("user_login") %>"
-        , "database_id": "<%= session("database_id") %>"
+        , "referer": "<%= session("referer") %>"
         , "connection_id": "<%= session("connection_id") %>"
 	    , "message": "<%= REPLACE(RegEx_JS_Escape.Replace(SqlRegEx.Replace(ErrorDesc, ""),"\$&"),CHR(10),"\n") %>"
 	    }
@@ -55,7 +55,7 @@
 	    "success": true
         , "userId": "<%= session("user_id") %>"
         , "user_login": "<%= session("user_login") %>"
-        , "database_id": "<%= session("database_id") %>"
+        , "referer": "<%= session("referer") %>"
         , "connection_id": "<%= session("connection_id") %>"
     <%
     FOR EACH oField IN rsResult.fields %>
