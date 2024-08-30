@@ -2226,6 +2226,28 @@ function curPageURL()
               port & Request.ServerVariables("SCRIPT_NAME")
 end function
 
+Function substringBefore(inputStr, charToFind)
+    Dim position, result
+    position = InStr(1, inputStr, charToFind)
+    If position > 0 Then
+        result = Left(inputStr, position - 1)
+    Else
+        result = inputStr
+    End If
+    substringBefore = result
+End Function
+
+Function substringAfter(inputStr, charToFind)
+    Dim position, result
+    position = InStr(1, inputStr, charToFind)
+    If position > 0 Then
+        result = Mid(inputStr, position + Len(charToFind)) 
+    Else
+        result = inputStr
+    End If
+    substringAfter = result
+End Function
+
 Dim SqlRegEx: Set SqlRegEx = New RegExp
 With SqlRegEx
     .Pattern = "(\[[^\[]*\])+"

@@ -382,7 +382,7 @@ IF fso.FileExists(file_location) THEN
         Dim maxAgeIndex
         maxAgeIndex = InStr(cacheControl, "max-age=")
         If maxAgeIndex > 0 Then
-            maxAge = CInt(Mid(cacheControl, maxAgeIndex + 8))
+            maxAge = CInt(substringBefore(Mid(cacheControl, maxAgeIndex + 8),","))
         End If
     End If
     If maxAge >= 0 And fileAge < (maxAge / 86400) Then ' Convert max-age from seconds to days
