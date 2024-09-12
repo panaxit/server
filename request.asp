@@ -58,7 +58,7 @@ Function BytesToStr(bytes)
         Stream.Write bytes
         Stream.Position = 0
         Stream.Type = 2 
-        Stream.Charset = "iso-8859-1"
+        Stream.Charset = "utf-8" 'iso-8859-1
         BytesToStr = Stream.ReadText
         Stream.Close
     Set Stream = Nothing
@@ -492,7 +492,9 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
 		        IF bParameterString THEN sParamValue="'"&REPLACE(sParamValue,"'","''")&"'" END IF
 		        IF RTRIM(sParamValue)="" THEN sParamValue="NULL" END IF
                 set param = xmlParameters.createElement("param")
-                param.setAttribute "name", sParameter
+                IF sParameter<>"@" THEN 'Allows unnamed parameters to be sent like @=param1_value, @=param2_value
+                    param.setAttribute "name", sParameter
+                END IF
                 'param.setAttribute "value", sParamValue
                 param.Text = sParamValue
                 xmlParameters.selectSingleNode("parameters").appendChild(param)
@@ -512,7 +514,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 sParameterName = oNode.getAttribute("name")
                 sParameterValue = oNode.text
                 sParameterType = "string"
-                set xParameter=xmlParameters.documentElement.selectSingleNode("/*/*[not(@name)][@position='"&i&"']|/*/*[translate(@name,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')='"&UCASE(sParameterName)&"']")
+                set xParameter=xmlParameters.documentElement.selectSingleNode("/*/*[not(@name)][position()='"&i&"']|/*/*[translate(@name,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')='"&UCASE(sParameterName)&"']")
                 SET oOtherNodes = xmlParameters.documentElement.selectNodes("/*/*[@position>"&i&"]")
                 'IF request.querystring(sParameterName).count > 0 THEN
                 '    sParameterValue = request.querystring(sParameterName)
