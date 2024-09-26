@@ -193,8 +193,19 @@ FUNCTION checkConnection(oCn)
 		DIM google_response
 		google_response = apiCall("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" & session("secret_token"))
 		Set xml_google_response = JSONToXML(google_response)
-		IF NOT (xml_google_response.documentElement.selectSingleNode("error_description") IS NOTHING) OR NOT(xml_google_response.documentElement.selectSingleNode("email").text = session("user_login")) THEN
-			session.Abandon
+		IF NOT(xml_google_response.documentElement IS NOTHING) THEN
+			Dim nError: Set nError = xml_google_response.documentElement.selectSingleNode("error|error_description")
+			Dim nEmail: Set nEmail = xml_google_response.documentElement.selectSingleNode("email")
+
+			IF NOT(nError IS NOTHING) THEN
+				Session.Contents.RemoveAll
+				Session.Abandon
+			ELSEIF NOT(nEmail IS NOTHING) THEN
+				IF NOT(nEmail.text = session("user_login")) THEN
+					Session.Contents.RemoveAll
+					Session.Abandon
+				END IF
+			END IF			
 		END IF
 		IF session("user_login") = "" THEN
 			Session("AccessGranted") = FALSE
@@ -2191,6 +2202,20 @@ function apiCall(strUrl)
     set xmlHttp = Nothing   
 end function 
 
+Function BytesToStr(bytes)
+    Dim Stream
+    Set Stream = Server.CreateObject("Adodb.Stream")
+        Stream.Type = 1 
+        Stream.Open
+        Stream.Write bytes
+        Stream.Position = 0
+        Stream.Type = 2 
+        Stream.Charset = "utf-8" 'iso-8859-1
+        BytesToStr = Stream.ReadText
+        Stream.Close
+    Set Stream = Nothing
+End Function
+
 function asyncCall(strUrl)
     Set xmlHttp = Server.Createobject("MSXML2.ServerXMLHTTP")
     xmlHttp.Open "GET", strUrl, False
@@ -2264,16 +2289,11 @@ With RegEx_JS_Escape
     .MultiLine = True
 End With
 
-Function login()
-	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
-	oCn.ConnectionTimeout = 5
-	oCn.CommandTimeout = 180
-
-    Response.CharSet = "ISO-8859-1"
-    DIM oConfiguration:	set oConfiguration = Server.CreateObject("MSXML2.DOMDocument"): 
-    oConfiguration.Async = false: 
-    oConfiguration.setProperty "SelectionLanguage", "XPath"
-    oConfiguration.Load(Server.MapPath("../system.config"))
+Function getConfiguration()
+	DIM oConfiguration:	set oConfiguration = Server.CreateObject("MSXML2.DOMDocument"): 
+	oConfiguration.Async = false: 
+	oConfiguration.setProperty "SelectionLanguage", "XPath"
+	oConfiguration.Load(Server.MapPath("../system.config"))
 	IF oConfiguration.documentElement IS NOTHING THEN
 		oConfiguration.Load(Server.MapPath("../../.config/system.config"))
 		IF oConfiguration.documentElement IS NOTHING THEN
@@ -2284,18 +2304,18 @@ Function login()
 		END IF
 	END IF
 
-    DIM sConnectionId
-    IF  request.form("database_id")<>"" THEN
-	    sConnectionId=request.form("database_id")
-    ELSEIF Application("database_id")<>"" THEN
-	    sConnectionId=Application("database_id")
-    ELSEIF  request.form("Connection_id")<>"" THEN
-	    sConnectionId=request.form("Connection_id")
-    ELSEIF Application("Connection_id")<>"" THEN
-	    sConnectionId=Application("Connection_id")
+	DIM sConnectionId
+	IF  request.form("database_id")<>"" THEN
+		sConnectionId=request.form("database_id")
+	ELSEIF Application("database_id")<>"" THEN
+		sConnectionId=Application("database_id")
+	ELSEIF  request.form("Connection_id")<>"" THEN
+		sConnectionId=request.form("Connection_id")
+	ELSEIF Application("Connection_id")<>"" THEN
+		sConnectionId=Application("Connection_id")
 	ELSE
 		sConnectionId=request.serverVariables("HTTP_HOST")
-    END IF
+	END IF
 
 	DIM referer: referer = REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://","")
 	IF referer<>"" THEN
@@ -2306,42 +2326,48 @@ Function login()
 	END IF
 	SESSION("connection_id") = sConnectionId
 
-    IF oConfiguration.documentElement IS NOTHING THEN
-        Response.ContentType = "application/json"
-        Response.CharSet = "ISO-8859-1"
-        Response.Status = "412 Precondition Failed" %>
-	    {
-	    "success": false,
-	    "message": "No se encontró el archivo de configuración system.config"
-	    }
-    <% 	response.end
-    END IF
+	IF oConfiguration.documentElement IS NOTHING THEN
+		Response.ContentType = "application/json"
+		Response.CharSet = "ISO-8859-1"
+		Response.Status = "412 Precondition Failed" %>
+		{
+		"success": false,
+		"message": "No se encontró el archivo de configuración system.config"
+		}
+	<% 	response.end
+	END IF
 
-    DIM sConnectionString
-    IF referer<>"" THEN
-	    sConnectionString="@Id='"&referer&"' or Alias/text()='"&referer&"' or @Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
-    ELSEIF sConnectionId<>"" THEN
-	    sConnectionString="@Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
-    ELSE
-	    sConnectionString="1=0"
-    END IF
+	DIM sConnectionString
+	IF referer<>"" THEN
+		sConnectionString="@Id='"&referer&"' or Alias/text()='"&referer&"' or @Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
+	ELSEIF sConnectionId<>"" THEN
+		sConnectionString="@Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
+	ELSE
+		sConnectionString="1=0"
+	END IF
 
-    DIM oDatabase: 
-    SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")
-    IF oDatabase IS NOTHING THEN
-        SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*[@Id=../@Default or string(../@Default)='' and (@Id='default' or @Id='main')]")
-    END IF
+	DIM oDatabase: 
+	SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")
+	IF oDatabase IS NOTHING THEN
+		SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*[@Id=../@Default or string(../@Default)='' and (@Id='default' or @Id='main')]")
+	END IF
 
-    IF oDatabase IS NOTHING THEN
-        Response.ContentType = "application/json"
-        Response.CharSet = "ISO-8859-1"
-        Response.Status = "401 Unauthorized" %>
-	    {
-	    "success": false,
-	    "message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config"
-	    }
-    <% 	response.end
-    END IF
+	IF oDatabase IS NOTHING THEN
+		Response.ContentType = "application/json"
+		Response.CharSet = "ISO-8859-1"
+		Response.Status = "401 Unauthorized" %>
+		{
+		"success": false,
+		"message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config"
+		}
+	<% 	response.end
+	END IF
+	Set getConfiguration = oDatabase
+End Function
+
+Function login()
+    Response.CharSet = "ISO-8859-1"
+	DIM oDatabase: SET oDatabase = getConfiguration()
     SESSION("connection_id") = oDatabase.getAttribute("Id")
     SESSION("database_id") = oDatabase.getAttribute("Id")
 
@@ -2388,6 +2414,10 @@ Function login()
 		}
 <% 	    response.end
 	END IF
+	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
+	oCn.ConnectionTimeout = 5
+	oCn.CommandTimeout = 180
+
     IF LCASE(SESSION("secret_engine")) = "google" THEN
 		session("secret_token") = sPassword
 		checkConnection(oCn)

@@ -39,31 +39,6 @@ With RegEx
     .MultiLine = True
 End With
 
-function asyncCall(strUrl)
-    Set xmlHttp = Server.Createobject("MSXML2.ServerXMLHTTP")
-    xmlHttp.Open "GET", strUrl, False
-    xmlHttp.setRequestHeader "User-Agent", "asp httprequest"
-    xmlHttp.setRequestHeader "content-type", "application/x-www-form-urlencoded"
-    xmlHttp.Send
-    getHTML = xmlHttp.responseText
-    xmlHttp.abort()
-    set xmlHttp = Nothing   
-end function 
-
-Function BytesToStr(bytes)
-    Dim Stream
-    Set Stream = Server.CreateObject("Adodb.Stream")
-        Stream.Type = 1 
-        Stream.Open
-        Stream.Write bytes
-        Stream.Position = 0
-        Stream.Type = 2 
-        Stream.Charset = "utf-8" 'iso-8859-1
-        BytesToStr = Stream.ReadText
-        Stream.Close
-    Set Stream = Nothing
-End Function
-
 Function getQuerystring(keys, join, bFormatValue)
     Dim string: string=""
     Dim key
@@ -92,7 +67,6 @@ Function getQuerystring(keys, join, bFormatValue)
     Next
     getQuerystring = string
 End Function
-
 
 Sub manageError(Err)
     If TypeName(Err) = "String" Then
@@ -734,7 +708,9 @@ DO
                         IF "@"&oNode.nodeName <> output_parameter THEN
                             Response.AddHeader "x-"&replace(oNode.nodeName,"_","-"), oNode.firstChild.xml
                         END IF
-                        response.write "<!--<WARNING>"& Err.Description &"</WARNING>-->"
+                        IF Err.Number<>0 THEN
+                            response.write "<!--<WARNING>"& Err.Description &"</WARNING>-->"
+                        END IF
                         ON ERROR GOTO 0
 		            NEXT
                     FOR EACH oNode IN x_parameters
@@ -743,15 +719,15 @@ DO
                             DIM objFirstChild:	set objFirstChild = Server.CreateObject("Microsoft.XMLDOM")
                             objFirstChild.Async = false
                             objFirstChild.loadXML(oNode.firstChild.xml)
+                            ON ERROR RESUME NEXT
                             IF 1=1 or Request.ServerVariables("HTTP_CACHE_RESPONSE")="true" THEN
                                 'response.write "<!-- Saved to "&file_location&"-->" & vbcrlf
                                 objFirstChild.save file_location
                                 objFirstChild.save alt_file_location
                             END IF
-                            ON ERROR RESUME NEXT
                             Response.write objFirstChild.xml
-                            IF Err.Number<>0 THEN 'OR r>max_recordsets THEN 
-                                manageError(Err)
+                            IF Err.Number<>0 THEN
+                                response.write "<!--<WARNING>"& Err.Description &"</WARNING>-->"
                             END IF
                             ON ERROR GOTO 0
                         END IF
@@ -763,10 +739,10 @@ DO
                         oXMLFile.save file_location
                         oXMLFile.save alt_file_location
                     END IF
-                    response.write oXMLFile.xml
-                    IF Err.Number<>0 THEN 'OR r>max_recordsets THEN 
-                        manageError(Err)
+                    IF Err.Number<>0 THEN
+                        response.write "<!--<WARNING>"& Err.Description &"</WARNING>-->"
                     END IF
+                    response.write oXMLFile.xml
                     ON ERROR GOTO 0
                 END IF
             ELSE %>

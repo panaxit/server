@@ -43,10 +43,10 @@ IF session_id="" THEN
     session_id="user_"&session("user_id") &""
 END IF
 
-DIM xmlDoc:	set xmlDoc = Server.CreateObject("Microsoft.XMLDOM")
-xmlDoc.Async = false
 DIM file_location
 file_location=server.MapPath(".")&"\..\..\sessions\"&session_id&".xml"
+DIM xmlDoc:	set xmlDoc = Server.CreateObject("Microsoft.XMLDOM")
+xmlDoc.Async = false
 xmlDoc.Load(file_location)
 
 response.CodePage = 65001
