@@ -252,7 +252,7 @@ FUNCTION checkConnection(oCn)
 						'response.Write ErrorDesc
 						IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 THEN
 							Response.Status = "503 Service Unavailable" '"408 Request Timeout"
-	%>
+        %>
 						{
 						"success": false,
 						"message": "No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= RegEx_JS_Escape.Replace(SqlRegEx.Replace(Err.Description, ""), "\$&") %>"
@@ -2305,24 +2305,14 @@ Function getConfiguration()
 	END IF
 
 	DIM sConnectionId
-	IF  request.form("database_id")<>"" THEN
-		sConnectionId=request.form("database_id")
+	IF Request.ServerVariables("HTTP_X_CONNECTION_ID")<>"" THEN
+		sConnectionId=Request.ServerVariables("HTTP_X_CONNECTION_ID")
 	ELSEIF Application("database_id")<>"" THEN
 		sConnectionId=Application("database_id")
 	ELSEIF  request.form("Connection_id")<>"" THEN
 		sConnectionId=request.form("Connection_id")
 	ELSEIF Application("Connection_id")<>"" THEN
 		sConnectionId=Application("Connection_id")
-	ELSE
-		sConnectionId=request.serverVariables("HTTP_HOST")
-	END IF
-
-	DIM referer: referer = REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://","")
-	IF referer<>"" THEN
-		If Right(referer, 1) = "/" Then
-			referer = Left(referer, Len(referer) - 1)
-		End If
-		SESSION("referer") = referer
 	END IF
 	SESSION("connection_id") = sConnectionId
 
@@ -2337,11 +2327,26 @@ Function getConfiguration()
 	<% 	response.end
 	END IF
 
+	IF sConnectionId<>"" THEN
+		sConnectionId = "'"&sConnectionId&"'"
+	ELSE
+		sConnectionId = "@Id"
+	END IF
+	
+	DIM referer: referer = REPLACE(REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://",""),"www.","")
+	If Right(referer, 1) = "/" Then
+		referer = Left(referer, Len(referer) - 1)
+	End If
+	DIM referer_id: referer_id = request.serverVariables("HTTP_X_REFERER_ID")
+
 	DIM sConnectionString
-	IF referer<>"" THEN
-		sConnectionString="@Id='"&referer&"' or Alias/text()='"&referer&"' or @Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
-	ELSEIF sConnectionId<>"" THEN
-		sConnectionString="@Id='"&sConnectionId&"' or Alias/text()='"&sConnectionId&"'"
+	IF referer <> "" THEN
+		SESSION("referer") = referer
+		IF referer_id<>"" AND INSTR(referer_id, referer)=1 THEN
+			sConnectionString = "Referer/text()='"&referer_id&"' and @Id="&sConnectionId&" or "
+			SESSION("referer") = referer_id
+		END IF
+		sConnectionString = sConnectionString & "Referer/text()='"&referer&"' and @Id="&sConnectionId&""
 	ELSE
 		sConnectionString="1=0"
 	END IF
@@ -2512,4 +2517,4 @@ Function login()
 		Set Login = rsResult
 	END IF
 End Function
-    %>
+%>
