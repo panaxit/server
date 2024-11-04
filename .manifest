@@ -1,5 +1,5 @@
 {
-  "server": { 
+  "server": {
     "login": "POST server/login.asp",
     "logout": "server/logout.asp",
     "submit": "POST server/post.asp",
@@ -8,5 +8,12 @@
     "sitemap": "server/sitemap.asp",
     "uploadFile": "server/upload_file.asp",
     "uploadFileManager": "server/upload_file_manager.asp"
+  },
+  "settings": {
+    "#server:login": {
+      "headers": {
+        "x-referer-id": "${location.hostname+location.pathname.split('/').slice(0,-1).join('/')}"
+      }
+    }
   }
 }

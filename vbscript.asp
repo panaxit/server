@@ -2341,11 +2341,11 @@ Function getConfiguration()
 
 	DIM sConnectionString
 	IF referer <> "" THEN
-		SESSION("referer") = referer
-		IF referer_id<>"" AND INSTR(referer_id, referer)=1 THEN
+		IF referer_id<>"" AND INSTR(referer_id, referer)=0 THEN
 			sConnectionString = "Referer/text()='"&referer_id&"' and @Id="&sConnectionId&" or "
-			SESSION("referer") = referer_id
+			referer = referer_id
 		END IF
+		SESSION("referer") = referer
 		sConnectionString = sConnectionString & "Referer/text()='"&referer&"' and @Id="&sConnectionId&""
 	ELSE
 		sConnectionString="1=0"
