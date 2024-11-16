@@ -2289,6 +2289,14 @@ With RegEx_JS_Escape
     .MultiLine = True
 End With
 
+Dim UrlCleanerRegx: Set UrlCleanerRegx = New RegExp
+With UrlCleanerRegx
+    .Pattern = "[\?#].*"
+    .IgnoreCase = True
+    .Global = True
+    .MultiLine = True
+End With
+
 Function getConfiguration()
 	DIM oConfiguration:	set oConfiguration = Server.CreateObject("MSXML2.DOMDocument"): 
 	oConfiguration.Async = false: 
@@ -2334,6 +2342,7 @@ Function getConfiguration()
 	END IF
 	
 	DIM referer: referer = REPLACE(REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://",""),"www.","")
+	referer = UrlCleanerRegx.Replace(referer, "")
 	If Right(referer, 1) = "/" Then
 		referer = Left(referer, Len(referer) - 1)
 	End If
@@ -2341,7 +2350,7 @@ Function getConfiguration()
 
 	DIM sConnectionString
 	IF referer <> "" THEN
-		IF referer_id<>"" AND INSTR(referer_id, referer)=0 THEN
+		IF referer_id<>"" AND INSTR(referer, referer_id)=1 AND INSTR(referer_id, "${")=0 THEN
 			sConnectionString = "Referer/text()='"&referer_id&"' and @Id="&sConnectionId&" or "
 			referer = referer_id
 		END IF
@@ -2387,18 +2396,22 @@ Function login()
         sDefaultUser     	= ""
     END IF
 	DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
+
 	DIM decrypted_password
-	If authorization<>"" Then
-		DIM DecodedAuthorization: DecodedAuthorization = Base64Decode(MID(authorization,7))
-		sUserLogin = Split(DecodedAuthorization, ":")(0)
+	IF INSTR(authorization,"Basic")=1 THEN
+		authorization = Base64Decode(MID(authorization,7))
+	END IF
+	IF INSTR(authorization,":")<>0 THEN
+		sUserLogin = Split(authorization, ":")(0)
 		sUserName = sUserLogin
-		decrypted_password = Split(DecodedAuthorization, ":")(1)
+		decrypted_password = Split(authorization, ":")(1)
 		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
 			sPassword = decrypted_password
 		Else
 			sPassword = Hash("md5",decrypted_password)
 		End If
-	Else
+	END IF
+	IF authorization="" THEN
 		sUserLogin = LCASE(URLDecode(request.form("UserName")))
 		sUserName = sUserLogin
 		sPassword = URLDecode(request.form("Password"))
