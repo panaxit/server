@@ -2341,7 +2341,7 @@ Function getConfiguration()
 		sConnectionId = "@Id"
 	END IF
 	
-	DIM referer: referer = REPLACE(REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://",""),"www.","")
+	DIM referer: referer = REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://","")
 	referer = UrlCleanerRegx.Replace(referer, "")
 	If Right(referer, 1) = "/" Then
 		referer = Left(referer, Len(referer) - 1)
@@ -2349,22 +2349,27 @@ Function getConfiguration()
 	DIM referer_id: referer_id = request.serverVariables("HTTP_X_REFERER_ID")
 
 	DIM sConnectionString
+	DIM oDatabase: SET oDatabase = NOTHING
 	IF referer <> "" THEN
-		IF referer_id<>"" AND INSTR(referer, referer_id)=1 AND INSTR(referer_id, "${")=0 THEN
-			sConnectionString = "Referer/text()='"&referer_id&"' and @Id="&sConnectionId&" or "
-			referer = referer_id
-		END IF
-		SESSION("referer") = referer
-		sConnectionString = sConnectionString & "Referer/text()='"&referer&"' and @Id="&sConnectionId&""
+		DO 
+			sConnectionString = ""
+			SESSION("referer") = referer
+			IF referer_id<>"" AND INSTR(referer_id, referer)=1 AND INSTR(referer_id, "${")=0 THEN
+				sConnectionString = "(Referer/text()='"&replace(referer_id,"www.","")&"' or Referer/text()='"&referer_id&"') and @Id="&sConnectionId&" or "
+			END IF
+			sConnectionString = sConnectionString & "(Referer/text()='"&replace(referer,"www.","")&"' or Referer/text()='"&referer&"') and @Id="&sConnectionId&""
+			SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")	
+			IF oDatabase IS NOTHING AND INSTR(referer, "/") > 0 THEN
+				referer = LEFT(referer, INSTRREV(referer, "/") - 1)
+			END IF
+		LOOP WHILE oDatabase IS NOTHING AND INSTR(referer, "/") > 0
 	ELSE
 		sConnectionString="1=0"
 	END IF
 
-	DIM oDatabase: 
-	SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")
-	IF oDatabase IS NOTHING THEN
-		SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*[@Id=../@Default or string(../@Default)='' and (@Id='default' or @Id='main')]")
-	END IF
+	'IF oDatabase IS NOTHING THEN
+	'	SET oDatabase = oConfiguration.documentElement.selectSingleNode("/configuration/Databases/*[@Id=../@Default or string(../'@Default)='' and (@Id='default' or @Id='main')]")
+	'END IF
 
 	IF oDatabase IS NOTHING THEN
 		Response.ContentType = "application/json"
