@@ -136,6 +136,8 @@ DIM debug: debug=Request.ServerVariables("HTTP_X_DEBUGGING")
 DIM xmlDoc
 Set xmlDoc=Server.CreateObject("Microsoft.XMLDOM")
 xmlDoc.async="false"
+xmlDoc.setProperty "SelectionLanguage", "XPath"
+xmlDoc.setProperty "SelectionNamespaces", "xmlns:xo='http://panax.io/xover'"
 xmlDoc.load(request)
 'xmlDoc.load(server.MapPath("..\panax\post from v12 entity - ejemplo Puesto.xml"))
 
@@ -145,6 +147,9 @@ END IF
 DIM xmlSubmit
 Set xmlSubmit=Server.CreateObject("Microsoft.XMLDOM")
 xmlSubmit.async="false"
+IF NOT(xmlDoc.documentElement IS NOTHING) THEN
+    xmlDoc.documentElement.setAttribute "xmlns:xo", "http://panax.io/xover"
+END IF
 IF xmlDoc.selectSingleNode("//xo:submit/*") IS NOTHING THEN
     DIM xmlSource
     Set xmlSource=Server.CreateObject("Microsoft.XMLDOM")
@@ -154,8 +159,11 @@ IF xmlDoc.selectSingleNode("//xo:submit/*") IS NOTHING THEN
     Set xslDoc=Server.CreateObject("Microsoft.XMLDOM")
     xslDoc.async="false"
     xslDoc.load(server.MapPath("..\panax\post.v12.xslt"))
-
-    xmlSubmit.loadXML("<xo:submit xmlns:x=""http://panax.io/xover"">"&xmlSource.transformNode(xslDoc)&"</xo:submit>")
+    IF xslDoc.selectSingleNode("*") IS NOTHING THEN
+        xmlSubmit = xmlSource
+    ELSE
+        xmlSubmit.loadXML("<xo:submit xmlns:xo=""http://panax.io/xover"">"&xmlSource.transformNode(xslDoc)&"</xo:submit>")
+    END IF
 
     dim root_node:  set root_node = xmlDoc.selectSingleNode("//xo:post")
     root_node.insertBefore xmlSubmit.firstChild, root_node.firstChild
