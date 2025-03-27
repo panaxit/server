@@ -9,6 +9,19 @@
     "uploadFile": "server/upload_file.asp",
     "uploadFileManager": "server/upload_file_manager.asp"
   },
+  "sources": {
+    "#ws": {
+      "xover.socket.connect": [
+        "ws://localhost:8003",
+        {
+          "message": "#messages",
+          "hotreload": "event:hotreload",
+          "databaseChange": "event:databaseChange"
+        }
+      ]
+    }
+  },
+  "start": [ "#ws" ],
   "settings": {
     "#server:login": {
       "headers": {
