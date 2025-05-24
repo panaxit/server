@@ -2303,11 +2303,14 @@ Function getConfiguration()
 	oConfiguration.setProperty "SelectionLanguage", "XPath"
 	oConfiguration.Load(Server.MapPath("../system.config"))
 	IF oConfiguration.documentElement IS NOTHING THEN
-		oConfiguration.Load(Server.MapPath("../../.config/system.config"))
+		oConfiguration.Load(Server.MapPath("../.config/system.config"))
 		IF oConfiguration.documentElement IS NOTHING THEN
-			oConfiguration.Load(Server.MapPath("../../config/system.config"))
+			oConfiguration.Load(Server.MapPath("../../.config/system.config"))
 			IF oConfiguration.documentElement IS NOTHING THEN
-				oConfiguration.Load(Server.MapPath("../../../.config/system.config"))
+				oConfiguration.Load(Server.MapPath("../../config/system.config"))
+				IF oConfiguration.documentElement IS NOTHING THEN
+					oConfiguration.Load(Server.MapPath("../../../.config/system.config"))
+				END IF
 			END IF
 		END IF
 	END IF
@@ -2378,6 +2381,7 @@ Function getConfiguration()
 		{
 		"success": false,
 		"message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config"
+		"referer": "<%= request.serverVariables("HTTP_REFERER") %>"
 		}
 	<% 	response.end
 	END IF
