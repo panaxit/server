@@ -2380,7 +2380,7 @@ Function getConfiguration()
 		Response.Status = "401 Unauthorized" %>
 		{
 		"success": false,
-		"message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config"
+		"message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config",
 		"referer": "<%= request.serverVariables("HTTP_REFERER") %>"
 		}
 	<% 	response.end
