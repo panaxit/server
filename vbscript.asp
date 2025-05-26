@@ -2519,7 +2519,7 @@ Function login()
 	sUserName = SESSION("user_login")
 	sPassword = SESSION("secret_password")
 		
-    IF LCASE(SESSION("secret_engine")) = "google" THEN
+    IF UCASE(SESSION("secret_engine")) = "GOOGLE" THEN
 		session("secret_token") = sPassword
 		Session("AccessGranted") = TRUE
 		session("status") = "authorized"
@@ -2540,21 +2540,13 @@ Function login()
 
 		Set Login = rsResult
 		Exit Function
-	ELSEIF LCASE(SESSION("secret_engine")) = "SQLSERVER" THEN
+	ELSEIF UCASE(SESSION("secret_engine")) = "SQLSERVER" THEN
 		IF oCn.state=0 THEN
 			Set Login = rsResult
 			Exit Function
 		END IF
-        IF sUserName<>"webmaster" THEN
-            sDatabaseUser = sUserName
-            'sDatabasePassword = "40A965D05136639974C40FAF6CFDF21D"
-            'IF sUserName="guest" THEN
-            '    sPassword = "40A965D05136639974C40FAF6CFDF21D"
-            'END IF
-        END IF
-		sUserLogin = LCASE(URLDecode(request.form("UserName")))
-		sUserName = sUserLogin
-		sPassword = URLDecode(request.form("Password"))
+		sUserName = SESSION("user_login")
+		sPassword = SESSION("secret_password")
 
 		IF ISNULL(sDatabasePassword) THEN
 			sDatabasePassword = decrypted_password
