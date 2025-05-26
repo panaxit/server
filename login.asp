@@ -59,16 +59,19 @@
         , "connection_id": "<%= session("connection_id") %>"
     <%
     FOR EACH oField IN rsResult.fields %>
-    <% IF oField.name="" Then %>
-    <%
-    %>
-    <% END IF %>
-    <% IF TypeName(oField)="Field" THEN %><% sType=TypeName(oField.value): sValue=oField.value %><% ELSE %><% sType=TypeName(oField): sValue=oField %><% END IF %>
-    <% SESSION(oField.name)= sValue %>
-		        ,"<%= oField.name %>":<% SELECT CASE UCASE(sType): CASE "NULL": %>null<% CASE "BOOLEAN": %><% IF sValue THEN %>true<% ELSE %>false<% END IF %><% CASE ELSE %>"<%= RTRIM(REPLACE(replaceMatch(sValue, "["&chr(13)&""&chr(10)&""&vbcr&""&vbcrlf&"]", ""&vbcrlf),"""", """")) %>"<% END SELECT %> 
-	        <% NEXT %>
-    }
-    <% rsResult.Close 
+        <% IF oField.name="" Then %>
+        <%
+        %>
+        <% END IF %>
+        <% IF TypeName(oField)="Field" THEN %><% sType=TypeName(oField.value): sValue=oField.value %><% ELSE %><% sType=TypeName(oField): sValue=oField %><% END IF %>
+        <% SESSION(oField.name)= sValue %>
+		            ,"<%= oField.name %>":<% SELECT CASE UCASE(sType): CASE "NULL": %>null<% CASE "BOOLEAN": %><% IF sValue THEN %>true<% ELSE %>false<% END IF %><% CASE ELSE %>"<%= RTRIM(REPLACE(replaceMatch(sValue, "["&chr(13)&""&chr(10)&""&vbcr&""&vbcrlf&"]", ""&vbcrlf),"""", """")) %>"<% END SELECT %> 
+	            <% NEXT %>
+        }
+        <% rsResult.Close 
+        If oCn.State = 1 THEN
+            oCn.Close
+        END IF
     END IF%>
     <% IF NOT(Session("AccessGranted")) THEN %>
 	    {
@@ -79,7 +82,4 @@
         , "source": "<%= REPLACE(strSQL,"""","""") %>"
 	    }
     <% END IF 
-    If oCn.State = 1 THEN
-        oCn.Close
-    END IF
 %>

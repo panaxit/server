@@ -25,6 +25,45 @@ Function Base64Decode(ByVal vCode)
     Set oXML = Nothing
 End Function
 
+Function decodeJWT(token)
+    Dim parts, payload, json, issuer, result
+    Set result = Server.CreateObject("Scripting.Dictionary")
+
+    If IsNullOrEmpty(token) Then Exit Function
+
+    parts = Split(token, ".")
+    If UBound(parts) < 1 Then Exit Function
+
+    payload = parts(1)
+    payload = payload & String((4 - Len(payload) Mod 4) Mod 4, "=") ' fix padding
+    payload = Replace(payload, "-", "+")
+    payload = Replace(payload, "_", "/")
+    
+    On Error Resume Next
+    json = Base64Decode(payload)
+    Set json = JSONToXML(json)
+    On Error GoTo 0
+
+    If Not json Is Nothing Then
+        Dim issNode
+        Set issNode = json.selectSingleNode("//iss")
+        If Not issNode Is Nothing Then
+            issuer = LCase(issNode.text)
+            If InStr(issuer, "google") > 0 Then
+                result.Add "provider", "google"
+            ElseIf InStr(issuer, "microsoft") > 0 Or InStr(issuer, "login.microsoftonline") > 0 Then
+                result.Add "provider", "microsoft"
+            Else
+                result.Add "provider", "unknown"
+            End If
+        End If
+        result.Add "iss", issuer
+        result.Add "email", json.selectSingleNode("//email").text
+    End If
+
+    Set decodeJWT = result
+End Function
+
 'Stream_StringToBinary Function
 '2003 Antonin Foller, http://www.motobit.com
 'Text - string parameter To convert To binary data
@@ -188,8 +227,64 @@ function asyncCall(strUrl)
     set xmlHttp = Nothing   
 end function 
 
-FUNCTION checkConnection(oCn)
-	IF LCASE(SESSION("secret_engine")) = "google" THEN
+FUNCTION checkConnection(oCn)	
+	DIM oDatabase: SET oDatabase = getConfiguration()
+    SESSION("connection_id") = oDatabase.getAttribute("Id")
+    SESSION("database_id") = oDatabase.getAttribute("Id")
+
+    DIM sDatabaseName, sDatabaseDriver, sDatabaseEngine, sDatabaseServer, sDatabaseUser, sDatabasePassword, sAuthority
+    sDatabaseName  		= oDatabase.getAttribute("Name")
+    sDatabaseEngine 	= oDatabase.getAttribute("Engine")
+    sDatabaseServer		= oDatabase.getAttribute("Server")
+    sDatabaseUser     	= oDatabase.getAttribute("User")
+    sDatabasePassword 	= oDatabase.getAttribute("Password")
+    sDefaultUser     	= oDatabase.getAttribute("DefaultUser")
+	sAuthority			= oDatabase.getAttribute("Authority")
+
+    IF ISNULL(sDefaultUser) THEN
+        sDefaultUser     	= ""
+    END IF
+	DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
+
+	DIM decrypted_password
+	IF INSTR(authorization,"Basic")=1 THEN
+		authorization = Base64Decode(MID(authorization,7))
+	END IF
+	DIM jwt: SET jwt = Server.CreateObject("Scripting.Dictionary")
+	IF INSTR(authorization,":")<>0 THEN
+		sUserLogin = Split(authorization, ":")(0)
+		sUserName = sUserLogin
+		decrypted_password = Split(authorization, ":")(1)
+		set jwt = decodeJWT(decrypted_password)
+		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
+			sAuthority = jwt("provider")
+			sPassword = decrypted_password
+			session("secret_token") = sPassword
+		Else
+			sPassword = Hash("md5",decrypted_password)
+		End If
+	END IF
+	IF authorization="" THEN
+		sUserLogin = LCASE(URLDecode(request.form("UserName")))
+		sUserName = sUserLogin
+		sPassword = URLDecode(request.form("Password"))
+	End if
+	session("user_login") = sUserName
+
+	DIM oUser
+	SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
+    SESSION("secret_engine") = sDatabaseEngine
+	IF oUser IS NOTHING THEN
+		Response.ContentType = "application/json"
+		Response.CharSet = "ISO-8859-1"
+		Response.Status = "401 Unauthorized" %>
+		{
+		"success": false,
+		"message": "Usuario no autorizado"
+		}
+<% 	    response.end
+	END IF
+	IF sAuthority = "google" THEN
 		DIM google_response
 		google_response = apiCall("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" & session("secret_token"))
 		Set xml_google_response = JSONToXML(google_response)
@@ -218,7 +313,32 @@ FUNCTION checkConnection(oCn)
 			}
 		<% 	response.end
 		END IF
-	ELSE
+	END IF
+	IF SESSION("secret_engine") = "SQLSERVER" THEN
+		IF ISNULL(sDatabaseUser) THEN
+			IF sUserName="" AND sPassword="" AND sDefaultUser<>"" THEN
+				sUserName = sDefaultUser
+			END IF
+
+			sDatabaseUser = oUser.getAttribute("InstanceUser")
+			IF ISNULL(sDatabaseUser) THEN
+				sDatabaseUser = sUserName
+			END IF
+			IF sPassword="" AND NOT ISNULL(oUser.getAttribute("Password")) THEN
+				sPassword = oUser.getAttribute("Password")
+			END IF
+			IF NOT ISNULL(oUser.getAttribute("InstancePassword")) THEN
+				sDatabasePassword 	= oUser.getAttribute("InstancePassword")
+			END IF
+		END IF
+		SESSION("secret_database_user") = sDatabaseUser
+		SESSION("secret_database_password") = sDatabasePassword
+		SESSION("secret_server_id") = oDatabase.getAttribute("Server")
+		SESSION("secret_database_name") = sDatabaseName
+
+		SESSION("user_login") = sUserName
+		SESSION("secret_password") = sPassword
+
 		DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
 		If oCn.State = 0 THEN
 			ON ERROR RESUME NEXT
@@ -252,7 +372,7 @@ FUNCTION checkConnection(oCn)
 						'response.Write ErrorDesc
 						IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 THEN
 							Response.Status = "503 Service Unavailable" '"408 Request Timeout"
-        %>
+		%>
 						{
 						"success": false,
 						"message": "No se pudo establecer una conexión con la base de datos <%= sDatabaseName %>: <%= RegEx_JS_Escape.Replace(SqlRegEx.Replace(Err.Description, ""), "\$&") %>"
@@ -2389,65 +2509,18 @@ Function getConfiguration()
 End Function
 
 Function login()
-    Response.CharSet = "ISO-8859-1"
-	DIM oDatabase: SET oDatabase = getConfiguration()
-    SESSION("connection_id") = oDatabase.getAttribute("Id")
-    SESSION("database_id") = oDatabase.getAttribute("Id")
-
-    DIM sDatabaseName, sDatabaseDriver, sDatabaseEngine, sDatabaseServer, sDatabaseUser, sDatabasePassword
-    sDatabaseName  		= oDatabase.getAttribute("Name")
-    sDatabaseEngine 	= oDatabase.getAttribute("Engine")
-    sDatabaseServer		= oDatabase.getAttribute("Server")
-    sDatabaseUser     	= oDatabase.getAttribute("User")
-    sDatabasePassword 	= oDatabase.getAttribute("Password")
-    sDefaultUser     	= oDatabase.getAttribute("DefaultUser")
-    IF ISNULL(sDefaultUser) THEN
-        sDefaultUser     	= ""
-    END IF
-	DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
-
-	DIM decrypted_password
-	IF INSTR(authorization,"Basic")=1 THEN
-		authorization = Base64Decode(MID(authorization,7))
-	END IF
-	IF INSTR(authorization,":")<>0 THEN
-		sUserLogin = Split(authorization, ":")(0)
-		sUserName = sUserLogin
-		decrypted_password = Split(authorization, ":")(1)
-		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
-			sPassword = decrypted_password
-		Else
-			sPassword = Hash("md5",decrypted_password)
-		End If
-	END IF
-	IF authorization="" THEN
-		sUserLogin = LCASE(URLDecode(request.form("UserName")))
-		sUserName = sUserLogin
-		sPassword = URLDecode(request.form("Password"))
-	End if
-	session("user_login") = sUserName
-
-	DIM oUser
-	SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
-	Set rsResult = Server.CreateObject("ADODB.RecordSet")
-    SESSION("secret_engine") = sDatabaseEngine
-	IF oUser IS NOTHING THEN
-		Response.ContentType = "application/json"
-		Response.CharSet = "ISO-8859-1"
-		Response.Status = "401 Unauthorized" %>
-		{
-		"success": false,
-		"message": "Usuario no autorizado"
-		}
-<% 	    response.end
-	END IF
+    Response.CharSet = "ISO-8859-1"    
+	Dim rsResult: Set rsResult = Server.CreateObject("ADODB.RecordSet")
 	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
 	oCn.ConnectionTimeout = 5
 	oCn.CommandTimeout = 180
-
+	'ON ERROR RESUME NEXT
+    checkConnection(oCn)
+	sUserName = SESSION("user_login")
+	sPassword = SESSION("secret_password")
+		
     IF LCASE(SESSION("secret_engine")) = "google" THEN
 		session("secret_token") = sPassword
-		checkConnection(oCn)
 		Session("AccessGranted") = TRUE
 		session("status") = "authorized"
 
@@ -2467,22 +2540,11 @@ Function login()
 
 		Set Login = rsResult
 		Exit Function
-	ELSEIF ISNULL(sDatabaseUser) THEN
-        IF sUserName="" AND sPassword="" AND sDefaultUser<>"" THEN
-            sUserName = sDefaultUser
-        END IF
-
-		sDatabaseUser = oUser.getAttribute("InstanceUser")
-		IF ISNULL(sDatabaseUser) THEN
-			sDatabaseUser = sUserName
+	ELSEIF LCASE(SESSION("secret_engine")) = "SQLSERVER" THEN
+		IF oCn.state=0 THEN
+			Set Login = rsResult
+			Exit Function
 		END IF
-		IF sPassword="" AND NOT ISNULL(oUser.getAttribute("Password")) THEN
-			sPassword = oUser.getAttribute("Password")
-		END IF
-		IF NOT ISNULL(oUser.getAttribute("InstancePassword")) THEN
-			sDatabasePassword 	= oUser.getAttribute("InstancePassword")
-		END IF
-	ELSE
         IF sUserName<>"webmaster" THEN
             sDatabaseUser = sUserName
             'sDatabasePassword = "40A965D05136639974C40FAF6CFDF21D"
@@ -2493,25 +2555,12 @@ Function login()
 		sUserLogin = LCASE(URLDecode(request.form("UserName")))
 		sUserName = sUserLogin
 		sPassword = URLDecode(request.form("Password"))
-    END IF
 
-	IF ISNULL(sDatabasePassword) THEN
-		sDatabasePassword = decrypted_password
-	END IF
+		IF ISNULL(sDatabasePassword) THEN
+			sDatabasePassword = decrypted_password
+		END IF
 
-    SESSION("secret_database_user") = sDatabaseUser
-    SESSION("secret_database_password") = sDatabasePassword
-    SESSION("secret_server_id") = oDatabase.getAttribute("Server")
-    SESSION("secret_database_name") = sDatabaseName
-
-    DIM currentLocation: currentLocation = curPageURL()
-    
-	ON ERROR RESUME NEXT
-    checkConnection(oCn)
-	IF oCn.state=0 THEN
-		Set Login = nothing
-	ELSE
-		session("user_login") = sUserName
+		DIM currentLocation: currentLocation = curPageURL()
 		strSQL="EXEC [#Security].Authenticate '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "'"
 		'response.write "strSQL: "&strSQL: response.end
 		rsResult.CursorLocation 	= 3
@@ -2531,12 +2580,12 @@ Function login()
 			Session("AccessGranted") = TRUE
 			session("status") = "authorized"
 		END IF
-		checkConnection(oCn)
-		'	alert('<%= REPLACE(strSQL, "'", "\'") %%')
-		'<%	'response.end
-		'Response.CodePage = 65001
-		'Response.CharSet = "UTF-8"
-		Set Login = rsResult
 	END IF
+	'checkConnection(oCn)
+	'	alert('<%= REPLACE(strSQL, "'", "\'") %%')
+	'<%	'response.end
+	'Response.CodePage = 65001
+	'Response.CharSet = "UTF-8"
+	Set Login = rsResult
 End Function
 %>
