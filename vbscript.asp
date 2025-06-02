@@ -37,33 +37,46 @@ Function decodeJWT(token)
     Set result = Server.CreateObject("Scripting.Dictionary")
 
     parts = Split(token, ".")
-    If UBound(parts) < 1 Then Exit Function
+    If UBound(parts) < 1 Then
+        Set decodeJWT = Nothing
+        Exit Function
+    End If
 
     payload = parts(1)
-    payload = payload & String((4 - Len(payload) Mod 4) Mod 4, "=") ' fix padding
+    payload = payload & String((4 - Len(payload) Mod 4) Mod 4, "=") ' pad base64
     payload = Replace(payload, "-", "+")
     payload = Replace(payload, "_", "/")
-    
+
     On Error Resume Next
-    json = Base64Decode(payload)
-    Set json = JSONToXML(json)
+    Dim jsonText
+    jsonText = Base64Decode(payload)
+    Set json = JSONToXML(jsonText)
     On Error GoTo 0
 
-    If Not json Is Nothing Then
-        Dim issNode
-        Set issNode = json.selectSingleNode("//iss")
-        If Not issNode Is Nothing Then
-            issuer = LCase(issNode.text)
-            If InStr(issuer, "google") > 0 Then
-                result.Add "provider", "google"
-            ElseIf InStr(issuer, "microsoft") > 0 Or InStr(issuer, "login.microsoftonline") > 0 Then
-                result.Add "provider", "microsoft"
-            Else
-                result.Add "provider", "unknown"
+    If json Is Nothing Then
+        Set decodeJWT = Nothing
+        Exit Function
+    End If
+	IF json.documentElement IS NOTHING THEN
+		Set decodeJWT = Nothing
+		Exit Function
+	END IF
+    Dim node
+    For Each node In json.documentElement.childNodes
+        If node.nodeType = 1 Then 
+            If Not result.Exists(node.nodeName) Then
+                result.Add node.nodeName, node.text
             End If
         End If
-        result.Add "iss", issuer
-        result.Add "email", json.selectSingleNode("//email").text
+    Next
+
+    issuer = LCase(result("iss"))
+    If InStr(issuer, "google") > 0 Then
+        result("provider") = "google"
+    ElseIf InStr(issuer, "microsoft") > 0 Or InStr(issuer, "login.microsoftonline") > 0 Then
+        result("provider") = "microsoft"
+    Else
+        result("provider") = "unknown"
     End If
 
     Set decodeJWT = result
@@ -237,7 +250,7 @@ FUNCTION checkConnection(oCn)
     SESSION("connection_id") = oDatabase.getAttribute("Id")
     SESSION("database_id") = oDatabase.getAttribute("Id")
 
-    DIM sDatabaseName, sDatabaseDriver, sDatabaseEngine, sDatabaseServer, sDatabaseUser, sDatabasePassword, sAuthority
+    DIM sDatabaseName, sDatabaseDriver, sDatabaseEngine, sDatabaseServer, sDatabaseUser, sDatabasePassword, sAuthority, sUserName
     sDatabaseName  		= oDatabase.getAttribute("Name")
     sDatabaseEngine 	= oDatabase.getAttribute("Engine")
     sDatabaseServer		= oDatabase.getAttribute("Server")
@@ -245,6 +258,7 @@ FUNCTION checkConnection(oCn)
     sDatabasePassword 	= oDatabase.getAttribute("Password")
     sDefaultUser     	= oDatabase.getAttribute("DefaultUser")
 	sAuthority			= oDatabase.getAttribute("Authority")
+	sClientId			= oDatabase.getAttribute("google-client-id")
 
     IF ISNULL(sDefaultUser) THEN
         sDefaultUser     	= ""
@@ -258,12 +272,14 @@ FUNCTION checkConnection(oCn)
 	DIM jwt: SET jwt = Server.CreateObject("Scripting.Dictionary")
 	IF INSTR(authorization,":")<>0 THEN
 		sUserLogin = Split(authorization, ":")(0)
-		sUserName = sUserLogin
 		decrypted_password = Split(authorization, ":")(1)
 		set jwt = decodeJWT(decrypted_password)
 		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
 			sAuthority = jwt("provider")
-			sPassword = decrypted_password
+			IF NOT(sClientId<>"" AND sClientId <> jwt("azp")) THEN
+				sUserName = sUserLogin
+				sPassword = decrypted_password
+			END IF
 			session("secret_token") = sPassword
 		Else
 			sPassword = Hash("md5",decrypted_password)
@@ -279,7 +295,7 @@ FUNCTION checkConnection(oCn)
 	DIM oUser
 	SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
     SESSION("secret_engine") = sDatabaseEngine
-	IF oUser IS NOTHING THEN
+	IF sPassword = "" OR oUser IS NOTHING THEN
 		Response.ContentType = "application/json"
 		Response.CharSet = "ISO-8859-1"
 		Response.Status = "401 Unauthorized" %>
