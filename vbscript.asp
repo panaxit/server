@@ -73,8 +73,10 @@ Function decodeJWT(token)
     issuer = LCase(result("iss"))
     If InStr(issuer, "google") > 0 Then
         result("provider") = "google"
-    ElseIf InStr(issuer, "microsoft") > 0 Or InStr(issuer, "login.microsoftonline") > 0 Then
+        result("client-id") = result("azp")
+    ElseIf InStr(issuer, "sts.windows.net") > 0 Or InStr(issuer, "microsoft") > 0 Or InStr(issuer, "login.microsoftonline") > 0 Then
         result("provider") = "microsoft"
+		result("client-id") = result("appid")
     Else
         result("provider") = "unknown"
     End If
@@ -258,7 +260,6 @@ FUNCTION checkConnection(oCn)
     sDatabasePassword 	= oDatabase.getAttribute("Password")
     sDefaultUser     	= oDatabase.getAttribute("DefaultUser")
 	sAuthority			= oDatabase.getAttribute("Authority")
-	sClientId			= oDatabase.getAttribute("google-client-id")
 
     IF ISNULL(sDefaultUser) THEN
         sDefaultUser     	= ""
@@ -276,11 +277,13 @@ FUNCTION checkConnection(oCn)
 		set jwt = decodeJWT(decrypted_password)
 		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
 			sAuthority = jwt("provider")
-			IF NOT(sClientId<>"" AND sClientId <> jwt("azp")) THEN
+			sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
+			IF NOT(sClientId<>"" AND sClientId <> jwt("client-id")) THEN
 				sUserName = sUserLogin
 				sPassword = decrypted_password
 			END IF
-			session("secret_token") = sPassword
+			SESSION("secret_password") = sPassword
+			session("secret_token") = sPassword			
 		Else
 			sPassword = Hash("md5",decrypted_password)
 		End If
@@ -317,7 +320,7 @@ FUNCTION checkConnection(oCn)
 				Session.Contents.RemoveAll
 				Session.Abandon
 			ELSEIF NOT(nEmail IS NOTHING) THEN
-				IF NOT(nEmail.text = session("user_login")) THEN
+				IF NOT(INSTR(nEmail.text, "@panax.io") <> 0 OR nEmail.text = session("user_login")) THEN
 					Session.Contents.RemoveAll
 					Session.Abandon
 				END IF
@@ -2537,11 +2540,10 @@ Function login()
 	oCn.CommandTimeout = 180
 	'ON ERROR RESUME NEXT
     checkConnection(oCn)
+		
 	sUserName = SESSION("user_login")
 	sPassword = SESSION("secret_password")
-		
     IF UCASE(SESSION("secret_engine")) = "GOOGLE" THEN
-		session("secret_token") = sPassword
 		Session("AccessGranted") = TRUE
 		session("status") = "authorized"
 
@@ -2567,7 +2569,6 @@ Function login()
 			Exit Function
 		END IF
 		sUserName = SESSION("user_login")
-		sPassword = SESSION("secret_password")
 
 		IF ISNULL(sDatabasePassword) THEN
 			sDatabasePassword = decrypted_password
