@@ -267,7 +267,8 @@ FUNCTION checkConnection(oCn)
 	DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
 
 	DIM decrypted_password
-	IF INSTR(authorization,"Basic")=1 THEN
+	DIM Base64Encoding: Base64Encoding = INSTR(authorization,"Basic")=1
+	IF Base64Encoding THEN
 		authorization = Base64Decode(MID(authorization,7))
 	END IF
 	DIM jwt: SET jwt = Server.CreateObject("Scripting.Dictionary")
@@ -279,7 +280,6 @@ FUNCTION checkConnection(oCn)
 			sAuthority = jwt("provider")
 			sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
 			IF NOT(sClientId<>"" AND sClientId <> jwt("client-id")) THEN
-				sUserName = sUserLogin
 				sPassword = decrypted_password
 			END IF
 			SESSION("secret_password") = sPassword
@@ -290,21 +290,25 @@ FUNCTION checkConnection(oCn)
 	END IF
 	IF authorization="" THEN
 		sUserLogin = LCASE(URLDecode(request.form("UserName")))
-		sUserName = sUserLogin
 		sPassword = URLDecode(request.form("Password"))
 	End if
+	sUserName = sUserLogin
 	session("user_login") = sUserName
 
 	DIM oUser
 	SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
     SESSION("secret_engine") = sDatabaseEngine
 	IF sPassword = "" OR oUser IS NOTHING THEN
+		DIM message
+		IF Base64Encoding THEN
+			message = "Usuario no autorizado"
+		END IF
 		Response.ContentType = "application/json"
 		Response.CharSet = "ISO-8859-1"
 		Response.Status = "401 Unauthorized" %>
 		{
 		"success": false,
-		"message": "Usuario no autorizado"
+		"message": "<%= message %>"
 		}
 <% 	    response.end
 	END IF
@@ -2502,9 +2506,9 @@ Function getConfiguration()
 			sConnectionString = ""
 			SESSION("referer") = referer
 			IF referer_id<>"" AND INSTR(referer_id, referer)=1 AND INSTR(referer_id, "${")=0 THEN
-				sConnectionString = "(Referer/text()='"&replace(referer_id,"www.","")&"' or Referer/text()='"&referer_id&"') and @Id="&sConnectionId&" or "
+				sConnectionString = "(Referer/text()='"&replace(referer_id,"www.","")&"' or Referer/text()='"&referer_id&"') and string(@Id)=string("&sConnectionId&") or "
 			END IF
-			sConnectionString = sConnectionString & "(Referer/text()='"&replace(referer,"www.","")&"' or Referer/text()='"&referer&"') and @Id="&sConnectionId&""
+			sConnectionString = sConnectionString & "(Referer/text()='"&replace(referer,"www.","")&"' or Referer/text()='"&referer&"') and string(@Id)=string("&sConnectionId&")"
 			SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")	
 			IF oDatabase IS NOTHING AND INSTR(referer, "/") > 0 THEN
 				referer = LEFT(referer, INSTRREV(referer, "/") - 1)
