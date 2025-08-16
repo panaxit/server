@@ -2542,7 +2542,6 @@ Function login()
 	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
 	oCn.ConnectionTimeout = 5
 	oCn.CommandTimeout = 180
-	'ON ERROR RESUME NEXT
     checkConnection(oCn)
 		
 	sUserName = SESSION("user_login")
@@ -2583,6 +2582,7 @@ Function login()
 		'response.write "strSQL: "&strSQL: response.end
 		rsResult.CursorLocation 	= 3
 		rsResult.CursorType 		= 3
+		ON ERROR RESUME NEXT
 		set rsResult = oCn.Execute(strSQL)
 		IF Err.Number<>0 THEN 
 			Session("AccessGranted") = FALSE
