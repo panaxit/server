@@ -29,7 +29,7 @@ Function decodeJWT(token)
     On Error Resume Next
 
     If IsNullOrEmpty(token) OR LCase(Trim(token)) = "undefined" Then
-        Set decodeJWT = Nothing
+        Set decodeJWT = result
         Exit Function
     End If
 
@@ -38,7 +38,7 @@ Function decodeJWT(token)
 
     parts = Split(token, ".")
     If UBound(parts) < 1 Then
-        Set decodeJWT = Nothing
+        Set decodeJWT = result
         Exit Function
     End If
 
@@ -54,11 +54,11 @@ Function decodeJWT(token)
     On Error GoTo 0
 
     If json Is Nothing Then
-        Set decodeJWT = Nothing
+        Set decodeJWT = result
         Exit Function
     End If
 	IF json.documentElement IS NOTHING THEN
-		Set decodeJWT = Nothing
+		Set decodeJWT = result
 		Exit Function
 	END IF
     Dim node
@@ -277,8 +277,11 @@ FUNCTION checkConnection(oCn)
 		decrypted_password = Split(authorization, ":")(1)
 		set jwt = decodeJWT(decrypted_password)
 		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
+			DIM sClientId: sClientId = ""
 			sAuthority = jwt("provider")
-			sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
+			IF sAuthority <> "" THEN
+				sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
+			END IF
 			IF NOT(sClientId<>"" AND sClientId <> jwt("client-id")) THEN
 				sPassword = decrypted_password
 			END IF
