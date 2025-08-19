@@ -28,13 +28,13 @@ End Function
 Function decodeJWT(token)
     On Error Resume Next
 
+    Dim parts, payload, json, issuer, result
+    Set result = Server.CreateObject("Scripting.Dictionary")
+
     If IsNullOrEmpty(token) OR LCase(Trim(token)) = "undefined" Then
         Set decodeJWT = result
         Exit Function
     End If
-
-    Dim parts, payload, json, issuer, result
-    Set result = Server.CreateObject("Scripting.Dictionary")
 
     parts = Split(token, ".")
     If UBound(parts) < 1 Then
