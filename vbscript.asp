@@ -28,17 +28,17 @@ End Function
 Function decodeJWT(token)
     On Error Resume Next
 
-    If IsNullOrEmpty(token) OR LCase(Trim(token)) = "undefined" Then
-        Set decodeJWT = Nothing
-        Exit Function
-    End If
-
     Dim parts, payload, json, issuer, result
     Set result = Server.CreateObject("Scripting.Dictionary")
 
+    If IsNullOrEmpty(token) OR LCase(Trim(token)) = "undefined" Then
+        Set decodeJWT = result
+        Exit Function
+    End If
+
     parts = Split(token, ".")
     If UBound(parts) < 1 Then
-        Set decodeJWT = Nothing
+        Set decodeJWT = result
         Exit Function
     End If
 
@@ -54,11 +54,11 @@ Function decodeJWT(token)
     On Error GoTo 0
 
     If json Is Nothing Then
-        Set decodeJWT = Nothing
+        Set decodeJWT = result
         Exit Function
     End If
 	IF json.documentElement IS NOTHING THEN
-		Set decodeJWT = Nothing
+		Set decodeJWT = result
 		Exit Function
 	END IF
     Dim node
@@ -73,8 +73,10 @@ Function decodeJWT(token)
     issuer = LCase(result("iss"))
     If InStr(issuer, "google") > 0 Then
         result("provider") = "google"
-    ElseIf InStr(issuer, "microsoft") > 0 Or InStr(issuer, "login.microsoftonline") > 0 Then
+        result("client-id") = result("azp")
+    ElseIf InStr(issuer, "sts.windows.net") > 0 Or InStr(issuer, "microsoft") > 0 Or InStr(issuer, "login.microsoftonline") > 0 Then
         result("provider") = "microsoft"
+		result("client-id") = result("appid")
     Else
         result("provider") = "unknown"
     End If
@@ -258,7 +260,6 @@ FUNCTION checkConnection(oCn)
     sDatabasePassword 	= oDatabase.getAttribute("Password")
     sDefaultUser     	= oDatabase.getAttribute("DefaultUser")
 	sAuthority			= oDatabase.getAttribute("Authority")
-	sClientId			= oDatabase.getAttribute("google-client-id")
 
     IF ISNULL(sDefaultUser) THEN
         sDefaultUser     	= ""
@@ -266,7 +267,8 @@ FUNCTION checkConnection(oCn)
 	DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
 
 	DIM decrypted_password
-	IF INSTR(authorization,"Basic")=1 THEN
+	DIM Base64Encoding: Base64Encoding = INSTR(authorization,"Basic")=1
+	IF Base64Encoding THEN
 		authorization = Base64Decode(MID(authorization,7))
 	END IF
 	DIM jwt: SET jwt = Server.CreateObject("Scripting.Dictionary")
@@ -275,33 +277,41 @@ FUNCTION checkConnection(oCn)
 		decrypted_password = Split(authorization, ":")(1)
 		set jwt = decodeJWT(decrypted_password)
 		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
+			DIM sClientId: sClientId = ""
 			sAuthority = jwt("provider")
-			IF NOT(sClientId<>"" AND sClientId <> jwt("azp")) THEN
-				sUserName = sUserLogin
+			IF sAuthority <> "" THEN
+				sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
+			END IF
+			IF NOT(sClientId<>"" AND sClientId <> jwt("client-id")) THEN
 				sPassword = decrypted_password
 			END IF
-			session("secret_token") = sPassword
+			SESSION("secret_password") = sPassword
+			session("secret_token") = sPassword			
 		Else
 			sPassword = Hash("md5",decrypted_password)
 		End If
 	END IF
 	IF authorization="" THEN
 		sUserLogin = LCASE(URLDecode(request.form("UserName")))
-		sUserName = sUserLogin
 		sPassword = URLDecode(request.form("Password"))
 	End if
+	sUserName = sUserLogin
 	session("user_login") = sUserName
 
 	DIM oUser
 	SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
     SESSION("secret_engine") = sDatabaseEngine
 	IF sPassword = "" OR oUser IS NOTHING THEN
+		DIM message
+		IF Base64Encoding THEN
+			message = "Usuario no autorizado"
+		END IF
 		Response.ContentType = "application/json"
 		Response.CharSet = "ISO-8859-1"
 		Response.Status = "401 Unauthorized" %>
 		{
 		"success": false,
-		"message": "Usuario no autorizado"
+		"message": "<%= message %>"
 		}
 <% 	    response.end
 	END IF
@@ -317,7 +327,7 @@ FUNCTION checkConnection(oCn)
 				Session.Contents.RemoveAll
 				Session.Abandon
 			ELSEIF NOT(nEmail IS NOTHING) THEN
-				IF NOT(nEmail.text = session("user_login")) THEN
+				IF NOT(INSTR(nEmail.text, "@panax.io") <> 0 OR nEmail.text = session("user_login")) THEN
 					Session.Contents.RemoveAll
 					Session.Abandon
 				END IF
@@ -2499,9 +2509,9 @@ Function getConfiguration()
 			sConnectionString = ""
 			SESSION("referer") = referer
 			IF referer_id<>"" AND INSTR(referer_id, referer)=1 AND INSTR(referer_id, "${")=0 THEN
-				sConnectionString = "(Referer/text()='"&replace(referer_id,"www.","")&"' or Referer/text()='"&referer_id&"') and @Id="&sConnectionId&" or "
+				sConnectionString = "(Referer/text()='"&replace(referer_id,"www.","")&"' or Referer/text()='"&referer_id&"') and string(@Id)=string("&sConnectionId&") or "
 			END IF
-			sConnectionString = sConnectionString & "(Referer/text()='"&replace(referer,"www.","")&"' or Referer/text()='"&referer&"') and @Id="&sConnectionId&""
+			sConnectionString = sConnectionString & "(Referer/text()='"&replace(referer,"www.","")&"' or Referer/text()='"&referer&"') and string(@Id)=string("&sConnectionId&")"
 			SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")	
 			IF oDatabase IS NOTHING AND INSTR(referer, "/") > 0 THEN
 				referer = LEFT(referer, INSTRREV(referer, "/") - 1)
@@ -2535,13 +2545,11 @@ Function login()
 	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
 	oCn.ConnectionTimeout = 5
 	oCn.CommandTimeout = 180
-	'ON ERROR RESUME NEXT
     checkConnection(oCn)
+		
 	sUserName = SESSION("user_login")
 	sPassword = SESSION("secret_password")
-		
     IF UCASE(SESSION("secret_engine")) = "GOOGLE" THEN
-		session("secret_token") = sPassword
 		Session("AccessGranted") = TRUE
 		session("status") = "authorized"
 
@@ -2567,7 +2575,6 @@ Function login()
 			Exit Function
 		END IF
 		sUserName = SESSION("user_login")
-		sPassword = SESSION("secret_password")
 
 		IF ISNULL(sDatabasePassword) THEN
 			sDatabasePassword = decrypted_password
@@ -2578,6 +2585,7 @@ Function login()
 		'response.write "strSQL: "&strSQL: response.end
 		rsResult.CursorLocation 	= 3
 		rsResult.CursorType 		= 3
+		ON ERROR RESUME NEXT
 		set rsResult = oCn.Execute(strSQL)
 		IF Err.Number<>0 THEN 
 			Session("AccessGranted") = FALSE
