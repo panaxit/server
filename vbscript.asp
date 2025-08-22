@@ -338,9 +338,12 @@ FUNCTION checkConnection(oCn)
 			session("status") = "unauthorized"
 	        Response.ContentType = "application/json"
 			Response.CharSet = "ISO-8859-1"
-			Response.Status = "401 Unauthorized" %>
+			Response.Status = "401 Unauthorized" 
+			IF Base64Encoding THEN
+				message = "Conexión no autorizada"
+			END IF %>
 			{
-			"message": "Conexión no autorizada"
+			"message": "<%= message %>"
 			}
 		<% 	response.end
 		END IF
