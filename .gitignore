@@ -342,3 +342,4 @@ healthchecksdb
 /panax/post from v12 entity - Proveedor que marca error.xml
 /sessions/save
 /cache
+/web.config
