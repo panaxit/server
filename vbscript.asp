@@ -2474,10 +2474,10 @@ Function getConfiguration()
 		sConnectionId=Request.ServerVariables("HTTP_X_CONNECTION_ID")
 	ELSEIF Application("database_id")<>"" THEN
 		sConnectionId=Application("database_id")
-	ELSEIF  request.form("Connection_id")<>"" THEN
-		sConnectionId=request.form("Connection_id")
 	ELSEIF Application("Connection_id")<>"" THEN
 		sConnectionId=Application("Connection_id")
+	ELSEIF INSTR(Request.ServerVariables("HTTP_CONTENT_TYPE"),"application/x-www-form-urlencoded")>0 THEN
+		sConnectionId=request.form("Connection_id")
 	END IF
 	SESSION("connection_id") = sConnectionId
 
