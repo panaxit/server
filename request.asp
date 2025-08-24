@@ -439,11 +439,11 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
             rebuild_parameters_snippet=", @rebuild=1"
         END IF
         DIM sSQLParams: sSQLParams="SET NOCOUNT ON; DECLARE @parameters XML; IF OBJECT_ID('[#panax].[getParameters]') IS NOT NULL BEGIN EXEC [#panax].[getParameters] '"&REPLACE(command,"'","''")&"', @parameters=@parameters OUT"&rebuild_parameters_snippet&"; END SELECT ISNULL(@parameters , '')"
-        IF debug THEN
-            response.ContentType = "text/xml" 
-            response.write "<!--"&sSQLParams&"-->" & vbcrlf
-            'response.end
-        END IF
+        'IF debug THEN
+            'response.ContentType = "text/xml" 
+            'response.write "<!--"&sSQLParams&"-->" & vbcrlf
+            ''response.end
+        'END IF
         ON ERROR RESUME NEXT
         SET rsParameters = oCn.Execute(sSQLParams)
         IF Err.Number<>0 THEN
@@ -635,10 +635,6 @@ strSQL = sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL
 '        strSQL="SET NOCOUNT ON; SELECT "&strSQL&" AS Result"
 '    END IF
 strSQL = replaceMatch(strSQL,"<(DEFAULT|NULL)/>","$1")
-IF INSTR(SESSION("user_login"),"@panax.io")<>0 THEN %>
-<!--<%= strSQL  %> -->
-<% 
-END IF
 IF 1=0 AND INSTR(SESSION("user_login"),"@panax.io")<>0 AND Debug THEN
     %><!-- <%
     for each x in Request.ServerVariables%>
@@ -654,9 +650,6 @@ END IF
 ON ERROR RESUME NEXT
 SET recordset = oCn.Execute(strSQL)
 IF Err.Number<>0 THEN 
-    IF INSTR(content_type,"xml")>0 THEN
-        response.write "<!--"&strSQL&"-->" & vbcrlf
-    END IF
     manageError(Err)
     response.end
 END IF
@@ -667,8 +660,8 @@ DO
         Response.Clear()
     END IF
     IF INSTR(Response.ContentType,"xml")>0 THEN
-        IF debug THEN
-            response.write "<!--"&recordset.Source&"-->"
+        IF debug OR INSTR(SESSION("user_login"),"@panax.io")<>0 THEN 
+            response.write "<!--"&recordset.Source&"-->" & vbcrlf
         END IF
     END IF
     IF Err.Number<>0 THEN 'OR r>max_recordsets THEN 
