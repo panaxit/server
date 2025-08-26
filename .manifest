@@ -30,7 +30,8 @@
     },
     "~.asp": {
       "headers": {
-        "x-referer-id": "${xover.session.referer_id || ''}"
+        "x-referer-id": "${xover.session.referer_id || ''}",
+        "authorization": "${xover.session.user_login}:${xover.session.id_token}"
       }
     }
   }
