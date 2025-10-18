@@ -1,5 +1,10 @@
 <% SERVER.SCRIPTTIMEOUT = 4800 %>
+<!--#include file="vbscript.asp"-->
 <%
+DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
+If (authorization<>"") Then
+    login
+End if
 DIM content_type: content_type=Request.ServerVariables("HTTP_ACCEPT")
 Server.ScriptTimeOut=1200
 response.Buffer=true

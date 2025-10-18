@@ -1,5 +1,9 @@
 <!--#include file="vbscript.asp"-->
 <%
+DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
+If (authorization<>"") Then
+    login
+End if
 Dim RegEx: Set RegEx = New RegExp
 With RegEx
     .Pattern = "'?(\.?\[[^\[]*\])+'?"
