@@ -267,7 +267,7 @@ FUNCTION checkConnection(oCn)
 	DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
 
 	DIM decrypted_password
-	DIM Base64Encoding: Base64Encoding = INSTR(authorization,"Basic")=1
+	DIM Base64Encoding: Base64Encoding = INSTR(authorization,"Basic ")=1
 	IF Base64Encoding THEN
 		authorization = Base64Decode(MID(authorization,7))
 	END IF
@@ -301,6 +301,12 @@ FUNCTION checkConnection(oCn)
 	DIM oUser
 	SET oUser=oDatabase.selectSingleNode("(./User[@Name='"&sUserName&"' or not(../User[@Name='"&sUserName&"']) and (@Name='*' or starts-with(@Name,'*@') and contains('"&sUserName&"',substring(@Name,3)))])[last()]")
     SESSION("secret_engine") = sDatabaseEngine
+	'IF NOT (oUser IS NOTHING) THEN
+		'DIM password: password = oUser.getAttribute("Password")
+		'IF (password <> "" AND sPassword <> password) BEGIN
+			'sPassword = ""
+		'END IF
+	'END IF
 	IF sPassword = "" OR oUser IS NOTHING THEN
 		DIM message
 		IF Base64Encoding THEN
@@ -2498,28 +2504,28 @@ Function getConfiguration()
 		sConnectionId = "@Id"
 	END IF
 	
-	DIM referer: referer = REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://","")
-	referer = UrlCleanerRegx.Replace(referer, "")
-	If Right(referer, 1) = "/" Then
-		referer = Left(referer, Len(referer) - 1)
+	DIM origin: origin = REPLACE(REPLACE(request.serverVariables("HTTP_ORIGIN"),"https://",""),"http://","")
+	origin = UrlCleanerRegx.Replace(origin, "")
+	If Right(origin, 1) = "/" Then
+		origin = Left(origin, Len(origin) - 1)
 	End If
-	DIM referer_id: referer_id = request.serverVariables("HTTP_X_REFERER_ID")
+	DIM origin_id: origin_id = request.serverVariables("HTTP_X_REFERER_ID")
 
 	DIM sConnectionString
 	DIM oDatabase: SET oDatabase = NOTHING
-	IF referer <> "" THEN
+	IF origin <> "" THEN
 		DO 
 			sConnectionString = ""
-			SESSION("referer") = referer
-			IF referer_id<>"" AND INSTR(referer_id, referer)=1 AND INSTR(referer_id, "${")=0 THEN
-				sConnectionString = "(Referer/text()='"&replace(referer_id,"www.","")&"' or Referer/text()='"&referer_id&"') and string(@Id)=string("&sConnectionId&") or "
+			SESSION("origin") = origin
+			IF origin_id<>"" AND INSTR(origin_id, origin)=1 AND INSTR(origin_id, "${")=0 THEN
+				sConnectionString = "(Referer/text()='"&replace(origin_id,"www.","")&"' or Referer/text()='"&origin_id&"' or Origin/text()='"&replace(origin_id,"www.","")&"' or Origin/text()='"&origin_id&"') and string(@Id)=string("&sConnectionId&") or "
 			END IF
-			sConnectionString = sConnectionString & "(Referer/text()='"&replace(referer,"www.","")&"' or Referer/text()='"&referer&"') and string(@Id)=string("&sConnectionId&")"
+			sConnectionString = sConnectionString & "(Referer/text()='"&replace(origin,"www.","")&"' or Referer/text()='"&origin&"' or Origin/text()='"&replace(origin,"www.","")&"' or Origin/text()='"&origin&"') and string(@Id)=string("&sConnectionId&")"
 			SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")	
-			IF oDatabase IS NOTHING AND INSTR(referer, "/") > 0 THEN
-				referer = LEFT(referer, INSTRREV(referer, "/") - 1)
+			IF oDatabase IS NOTHING AND INSTR(origin, "/") > 0 THEN
+				origin = LEFT(origin, INSTRREV(origin, "/") - 1)
 			END IF
-		LOOP WHILE oDatabase IS NOTHING AND INSTR(referer, "/") > 0
+		LOOP WHILE oDatabase IS NOTHING AND INSTR(origin, "/") > 0
 	ELSE
 		sConnectionString="1=0"
 	END IF
@@ -2535,7 +2541,7 @@ Function getConfiguration()
 		{
 		"success": false,
 		"message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config",
-		"referer": "<%= request.serverVariables("HTTP_REFERER") %>"
+		"origin": "<%= request.serverVariables("HTTP_ORIGIN") %>"
 		}
 	<% 	response.end
 	END IF
@@ -2584,7 +2590,7 @@ Function login()
 		END IF
 
 		DIM currentLocation: currentLocation = curPageURL()
-		strSQL="EXEC [#Security].Authenticate '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "'"
+		strSQL="IF OBJECT_ID('[#Security].Authenticate') IS NOT NULL BEGIN EXEC [#Security].Authenticate '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "' END"
 		'response.write "strSQL: "&strSQL: response.end
 		rsResult.CursorLocation 	= 3
 		rsResult.CursorType 		= 3
