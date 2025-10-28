@@ -165,7 +165,7 @@ DIM root_node: root_node = Request.ServerVariables("HTTP_X_ROOT_NODE")
 IF root_node="" THEN
     root_node="xo:response"
 END IF
-DIM row_node: root_node = Request.ServerVariables("HTTP_X_ROW_NODE")
+DIM row_node: row_node = Request.ServerVariables("HTTP_X_ROW_NODE")
 IF row_node="" THEN
     row_node="xo:r"
 END IF
