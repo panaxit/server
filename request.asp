@@ -182,8 +182,8 @@ DIM page_index: page_index = Request.ServerVariables("HTTP_X_PAGE_INDEX")
 IF page_index="" THEN
     page_index="1"
 END IF
+
 DIM max_records: max_records = Request.ServerVariables("HTTP_X_MAX_RECORDS")
-DIM namespaces: namespaces = Request.ServerVariables("HTTP_X_NAMESPACES")
 'IF 1=1 OR Request.ServerVariables("HTTP_ROOT_NODE").Count>0 AND root_node = "" THEN
 
 DIM output_parameter: output_parameter = Request.ServerVariables("HTTP_X_OUTPUT_PARAMETER")
@@ -230,6 +230,13 @@ IF INSTR(sType,"V")<>0 THEN
 END IF    
 
 'FIELDS
+DIM meta_fields: meta_fields = Request.ServerVariables("HTTP_X_META_FIELDS")
+meta_fields = URLDecode(""&meta_fields)
+IF data_value<>"" THEN
+    IF data_fields<>"" THEN data_fields=data_fields & ", " END IF
+    data_fields = data_fields & "[value]=" & URLDecode(data_value)
+END IF
+    
 DIM data_fields: data_fields = Request.ServerVariables("HTTP_X_DATA_FIELDS")
 data_fields = URLDecode(""&data_fields)
 
@@ -608,19 +615,44 @@ IF INSTR(sType,"T")<>0 THEN
     END IF
 END IF 
 
+DIM namespaces: namespaces = Request.ServerVariables("HTTP_X_NAMESPACES")
+IF INSTR(namespaces&" "," as meta ")=0 THEN'AND (INSTR(data_fields,"meta:")>0 OR INSTR(root_node,"meta:")>0 OR INSTR(row_node,"meta:")>0)THEN
+    namespaces = namespaces & ", 'http://panax.io/metadata' as meta"
+END IF
+IF INSTR(namespaces&" "," as xo ")=0 AND (INSTR(data_fields,"xo:")>0 OR INSTR(root_node,"xo:")>0 OR INSTR(row_node,"xo:")>0) THEN
+    namespaces = namespaces & ", 'http://panax.io/xover' as xo"
+END IF
+IF INSTR(namespaces&" "," as __data ")=0 AND (INSTR(data_fields,"__data:")>0 OR INSTR(root_node,"__data:")>0 OR INSTR(row_node,"__data:")>0) THEN
+    namespaces = namespaces & ", 'http://panax.io/source' as __data"
+END IF
+IF INSTR(namespaces&" "," as custom ")=0 AND (INSTR(data_fields,"custom:")>0 OR INSTR(root_node,"custom:")>0 OR INSTR(row_node,"custom:")>0) THEN
+    namespaces = namespaces & ", 'http://panax.io/custom' as custom"
+END IF
+IF INSTR(namespaces&" "," as source ")=0 AND (INSTR(data_fields,"source:")>0 OR INSTR(root_node,"source:")>0 OR INSTR(row_node,"source:")>0) THEN
+    namespaces = namespaces & ", 'http://panax.io/fetch/request' as source"
+END IF
+IF INSTR(namespaces&" "," as transformiix ")=0 AND (INSTR(data_fields,"transformiix:")>0 OR INSTR(root_node,"transformiix:")>0 OR INSTR(row_node,"transformiix:")>0) THEN
+    namespaces = namespaces & ", 'http://www.mozilla.org/TransforMiix' as transformiix"
+END IF
+IF INSTR(namespaces&" "," as state ")=0 AND (INSTR(data_fields,"state:")>0 OR INSTR(root_node,"state:")>0 OR INSTR(row_node,"state:")>0) THEN
+    namespaces = namespaces & ", 'http://panax.io/state' as state"
+END IF
+IF namespaces="" THEN
+    namespaces = "default 'http://panax.io/xover'"
+END IF
+namespaces = "XMLNAMESPACES("&namespaces&" ) "
+namespaces = REPLACE(namespaces, "XMLNAMESPACES(, ", "XMLNAMESPACES(")
+
 IF INSTR(sType,"P")<>0 THEN
     strSQL="EXEC "&command &"; "
     IF sOutputParams<>"" THEN 
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as xo, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('xo:parameters'), TYPE"
+        strSQL=strSQL&"WITH "&namespaces&" SELECT (SELECT "&sOutputParams&" FOR XML PATH(''), TYPE) FOR XML PATH(''), ROOT('xo:parameters'), TYPE"
     END IF
 ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
-    IF namespaces<>"" THEN
-        namespaces = ", " & namespaces
-    END IF
-    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as xo, 'http://panax.io/source' as __data, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ), #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:resultCount] = COUNT(1) OVER(), * FROM ( SELECT [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), [@meta:resultCount]=(SELECT TOP 1 [@meta:resultCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML "&xml_mode&"('"&row_node&"'), TYPE) FOR XML "&xml_mode&"('"&root_node&"'), TYPE"
+    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH "&namespaces&", #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:resultCount] = COUNT(1) OVER(), * FROM ( SELECT [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), [@meta:resultCount]=(SELECT TOP 1 [@meta:resultCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML "&xml_mode&"('"&row_node&"'), TYPE) FOR XML "&xml_mode&"('"&root_node&"'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     IF INSTR(content_type,"xml")>0 THEN
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as xo, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML "&xml_mode&"('"&row_node&"'), TYPE) FOR XML "&xml_mode&"('"&root_node&"'), TYPE"
+        strSQL=strSQL&"WITH "&namespaces&" SELECT (SELECT "&command & data_predicate&" FOR XML "&xml_mode&"('"&row_node&"'), TYPE) FOR XML "&xml_mode&"('"&root_node&"'), TYPE"
     ELSE
         strSQL="SELECT "&command & data_predicate
     END IF
