@@ -690,8 +690,8 @@ DO
                     oXMLFile.LoadXML(oField)
                 END IF
                 IF oXMLFile.documentElement IS NOTHING THEN
-                    IF Request.ServerVariables("HTTP_ROOT_NODE")<>"" THEN %>
-<<%= Request.ServerVariables("HTTP_ROOT_NODE") %> xmlns:xo="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
+                    IF root_node<>"" THEN %>
+<<%= root_node %> xmlns:xo="http://panax.io/xover" xmlns:source="http://panax.io/fetch/request" />
 <%                  ELSE
                             Response.Status = "204 No Content"
                     END IF
