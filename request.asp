@@ -169,6 +169,11 @@ DIM row_node: row_node = Request.ServerVariables("HTTP_X_ROW_NODE")
 IF row_node="" THEN
     row_node="xo:r"
 END IF
+DIM xml_mode: xml_mode = Request.ServerVariables("HTTP_X_XML_MODE")
+IF xml_mode="" THEN
+    xml_mode="RAW"
+END IF
+
 DIM page_size: page_size = Request.ServerVariables("HTTP_X_PAGE_SIZE")
 IF page_size="" THEN
     page_size="100000"
@@ -612,15 +617,18 @@ ELSEIF INSTR(sType,"T")<>0 THEN 'Table  y Table Function
     IF namespaces<>"" THEN
         namespaces = ", " & namespaces
     END IF
-    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as xo, 'http://panax.io/source' as __data, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ), #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:resultCount] = COUNT(1) OVER(), * FROM ( SELECT [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), [@meta:resultCount]=(SELECT TOP 1 [@meta:resultCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML PATH('"&row_node&"'), TYPE) FOR XML PATH('"&root_node&"'), TYPE"
+    strSQL="SET NOCOUNT ON; SET TEXTSIZE 2147483647; DECLARE @page_size INT, @page_index INT; SELECT @page_size="&page_size&", @page_index="&page_index&"; WITH XMLNAMESPACES('http://panax.io/xover' as xo, 'http://panax.io/source' as __data, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix"&namespaces&" ), #table AS ( SELECT [@meta:position]=ROW_NUMBER() OVER(ORDER BY "&order_by&"), [@meta:resultCount] = COUNT(1) OVER(), * FROM ( SELECT [@meta:totalCount] = COUNT(1) OVER(), "&data_fields&" FROM "&command&" "&data_predicate&") #table "&extra_predicate&") SELECT [@meta:pageIndex]=@page_index, [@meta:pageSize]=@page_size, [@meta:totalCount]=(SELECT TOP 1 [@meta:totalCount] FROM #table), [@meta:resultCount]=(SELECT TOP 1 [@meta:resultCount] FROM #table), ( SELECT * FROM #table "&max_records_predicate&" ORDER BY 1 OFFSET @page_size * (@page_index-1) ROWS FETCH NEXT @page_size ROWS ONLY FOR XML "&xml_mode&"('"&row_node&"'), TYPE) FOR XML "&xml_mode&"('"&root_node&"'), TYPE"
 ELSEIF INSTR(sType,"F")<>0 THEN
     IF INSTR(content_type,"xml")>0 THEN
-        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as xo, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML PATH(''), TYPE) FOR XML PATH('"&root_node&"'), TYPE"
+        strSQL=strSQL&"WITH XMLNAMESPACES('http://panax.io/xover' as xo, 'http://panax.io/state' as state, 'http://panax.io/metadata' as meta, 'http://panax.io/custom' as custom, 'http://panax.io/fetch/request' as source, 'http://www.mozilla.org/TransforMiix' as transformiix) SELECT (SELECT "&command & data_predicate&" FOR XML "&xml_mode&"('"&row_node&"'), TYPE) FOR XML "&xml_mode&"('"&root_node&"'), TYPE"
     ELSE
         strSQL="SELECT "&command & data_predicate
     END IF
 ELSE
     strSQL="SELECT "&data_fields&" FROM "&command & " AS Result "&data_predicate
+END IF
+IF xml_mode="RAW" THEN
+	strSQL = REPLACE(strSQL, "[@", "[")
 END IF
 
 strSQL = REPLACE(strSQL, "'NULL'", "NULL")
@@ -664,7 +672,7 @@ DO
         Response.Clear()
     END IF
     IF INSTR(Response.ContentType,"xml")>0 THEN
-        IF debug OR INSTR(SESSION("user_login"),"@panax.io")<>0 THEN 
+        IF 1=1 or debug OR INSTR(SESSION("user_login"),"@panax.io")<>0 THEN 
             response.write "<!--"&recordset.Source&"-->" & vbcrlf
         END IF
     END IF
