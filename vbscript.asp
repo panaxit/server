@@ -375,6 +375,7 @@ FUNCTION checkConnection(oCn)
 		SESSION("secret_database_password") = sDatabasePassword
 		SESSION("secret_server_id") = oDatabase.getAttribute("Server")
 		SESSION("secret_database_name") = sDatabaseName
+		SESSION("secret_authentication_method") = oDatabase.getAttribute("Method")
 
 		SESSION("user_login") = sUserName
 		SESSION("secret_password") = sPassword
@@ -2584,32 +2585,35 @@ Function login()
 			Exit Function
 		END IF
 		sUserName = SESSION("user_login")
+		AuthenticationMethod = SESSION("secret_authentication_method")
 
 		IF ISNULL(sDatabasePassword) THEN
 			sDatabasePassword = decrypted_password
 		END IF
 
 		DIM currentLocation: currentLocation = curPageURL()
-		strSQL="IF OBJECT_ID('[#Security].Authenticate') IS NOT NULL BEGIN EXEC [#Security].Authenticate '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "' END"
-		'response.write "strSQL: "&strSQL: response.end
-		rsResult.CursorLocation 	= 3
-		rsResult.CursorType 		= 3
-		ON ERROR RESUME NEXT
-		set rsResult = oCn.Execute(strSQL)
-		IF Err.Number<>0 THEN 
-			Session("AccessGranted") = FALSE
-			session("status") = "unauthorized"
-			Response.ContentType = "application/json"
-			Response.CharSet = "ISO-8859-1"
-			IF Err.Number=-2147217911 THEN
-				Response.Status = "401 Unauthorized"
-			ELSE 
-				Response.Status = "409 Conflict"
+			strSQL="EXEC "&AuthenticationMethod&" '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "'"
+			'response.write "strSQL: "&strSQL: response.end
+			rsResult.CursorLocation 	= 3
+			rsResult.CursorType 		= 3
+			ON ERROR RESUME NEXT
+			IF AuthenticationMethod<>"" THEN
+				SET rsResult = oCn.Execute(strSQL)
 			END IF
-		ELSE
-			Session("AccessGranted") = TRUE
-			session("status") = "authorized"
-		END IF
+			IF Err.Number<>0 THEN 
+				Session("AccessGranted") = FALSE
+				session("status") = "unauthorized"
+				Response.ContentType = "application/json"
+				Response.CharSet = "ISO-8859-1"
+				IF Err.Number=-2147217911 THEN
+					Response.Status = "401 Unauthorized"
+				ELSE 
+					Response.Status = "409 Conflict"
+				END IF
+			ELSE
+				Session("AccessGranted") = TRUE
+				session("status") = "authorized"
+			END IF
 	END IF
 	'checkConnection(oCn)
 	'	alert('<%= REPLACE(strSQL, "'", "\'") %%')
