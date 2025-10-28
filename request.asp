@@ -672,7 +672,7 @@ DO
         Response.Clear()
     END IF
     IF INSTR(Response.ContentType,"xml")>0 THEN
-        IF 1=1 or debug OR INSTR(SESSION("user_login"),"@panax.io")<>0 THEN 
+        IF debug OR INSTR(SESSION("user_login"),"@panax.io")<>0 THEN 
             response.write "<!--"&recordset.Source&"-->" & vbcrlf
         END IF
     END IF
