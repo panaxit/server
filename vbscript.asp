@@ -288,7 +288,7 @@ FUNCTION checkConnection(oCn)
 			SESSION("secret_password") = sPassword
 			session("secret_token") = sPassword			
 		Else
-			sPassword = Hash("md5",decrypted_password)
+			sPassword = decrypted_password 'Hash("md5",decrypted_password)
 		End If
 	END IF
 	IF authorization="" THEN
