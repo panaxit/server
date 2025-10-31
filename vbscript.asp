@@ -2536,6 +2536,11 @@ Function getConfiguration()
 	'END IF
 
 	IF oDatabase IS NOTHING THEN
+		IF sConnectionId="@Id" THEN
+			sConnectionId=""
+		ELSE
+			sConnectionId=sConnectionId&" "
+		END IF
 		Response.ContentType = "application/json"
 		Response.CharSet = "ISO-8859-1"
 		Response.Status = "401 Unauthorized" %>
