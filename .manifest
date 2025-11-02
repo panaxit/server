@@ -25,13 +25,13 @@
   "settings": {
     "#server:login": {
       "headers": {
-        "x-referer-id": "${location.hostname+location.pathname.split('/').slice(0,-1).join('/')}"
+        "x-origin-id": "${location.hostname+location.pathname.split('/').slice(0,-1).join('/')}"
       }
     },
     "~.asp": {
       "headers": {
-        "x-referer-id": "${xover.session.referer_id || ''}",
-        "authorization": "${xover.session.user_login}:${xover.session.id_token}"
+        "x-origin-id": "${xover.session.origin_id || ''}",
+        "authorization": "${xover.session.id_token}"
       }
     }
   }

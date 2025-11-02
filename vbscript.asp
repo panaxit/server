@@ -375,7 +375,7 @@ FUNCTION checkConnection(oCn)
 		SESSION("secret_database_password") = sDatabasePassword
 		SESSION("secret_server_id") = oDatabase.getAttribute("Server")
 		SESSION("secret_database_name") = sDatabaseName
-		SESSION("secret_authentication_method") = oDatabase.getAttribute("Method")
+		SESSION("secret_authentication_method") = oDatabase.getAttribute("AuthenticationMethod")
 
 		SESSION("user_login") = sUserName
 		SESSION("secret_password") = sPassword
@@ -2505,12 +2505,19 @@ Function getConfiguration()
 		sConnectionId = "@Id"
 	END IF
 	
-	DIM origin: origin = REPLACE(REPLACE(request.serverVariables("HTTP_ORIGIN"),"https://",""),"http://","")
+	DIM origin: 
+	origin = REPLACE(REPLACE(request.serverVariables("HTTP_ORIGIN"),"https://",""),"http://","")
+	IF origin = "" THEN
+        origin = REPLACE(REPLACE(request.serverVariables("HTTP_REFERER"),"https://",""),"http://","")
+    END IF
 	origin = UrlCleanerRegx.Replace(origin, "")
 	If Right(origin, 1) = "/" Then
 		origin = Left(origin, Len(origin) - 1)
 	End If
-	DIM origin_id: origin_id = request.serverVariables("HTTP_X_REFERER_ID")
+	DIM origin_id: origin_id = request.serverVariables("HTTP_X_ORIGIN_ID")
+	if origin_id = "" then
+        origin_id = request.serverVariables("HTTP_REFERER_ID")
+    end if
 
 	DIM sConnectionString
 	DIM oDatabase: SET oDatabase = NOTHING
@@ -2546,7 +2553,7 @@ Function getConfiguration()
 		Response.Status = "401 Unauthorized" %>
 		{
 		"success": false,
-		"message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %> en el archivo de configuración system.config",
+		"message": "No se encontró definida la conexión <%= REPLACE(sConnectionId,"\","\\") %>en el archivo de configuración system.config",
 		"origin": "<%= request.serverVariables("HTTP_ORIGIN") %>"
 		}
 	<% 	response.end
@@ -2591,11 +2598,22 @@ Function login()
 		END IF
 		sUserName = SESSION("user_login")
 		AuthenticationMethod = SESSION("secret_authentication_method")
-
 		IF ISNULL(sDatabasePassword) THEN
 			sDatabasePassword = decrypted_password
 		END IF
-
+		IF ISNULL(AuthenticationMethod) THEN 
+			Session("AccessGranted") = FALSE
+			session("status") = "unauthorized"
+			Response.ContentType = "application/json"
+			Response.CharSet = "ISO-8859-1"
+			Response.Status = "500 Internal Server Error" %>
+			{
+			"success": false,
+			"message": "No se encontró definido el método de autenticación en el archivo de configuración system.config"
+			}
+		<% 	response.end
+		END IF
+			
 		DIM currentLocation: currentLocation = curPageURL()
 			strSQL="EXEC "&AuthenticationMethod&" '" & REPLACE(RTRIM(sUserName),"'", "''") & "', '"& REPLACE(RTRIM(sPassword),"'", "''") & "'"
 			'response.write "strSQL: "&strSQL: response.end
