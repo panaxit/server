@@ -282,6 +282,18 @@ FUNCTION checkConnection(oCn)
 			IF sAuthority <> "" THEN
 				sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
 			END IF
+			IF jwt("client-id")<>"" AND ISNULL(sClientId) THEN 
+				Session("AccessGranted") = FALSE
+				session("status") = "unauthorized"
+				Response.ContentType = "application/json"
+				Response.CharSet = "ISO-8859-1"
+				Response.Status = "500 Internal Server Error" %>
+				{
+				"success": false,
+				"message": "No se encontró definido el <%= sAuthority %>-client-id en el archivo de configuración system.config"
+				}
+			<% 	response.end
+			END IF
 			IF NOT(sClientId<>"" AND sClientId <> jwt("client-id")) THEN
 				sPassword = decrypted_password
 			END IF
@@ -318,6 +330,9 @@ FUNCTION checkConnection(oCn)
 		{
 		"success": false,
 		"message": "<%= message %>"
+		<% IF INSTR(sUserName, "@panax.io") <> 0 THEN %>
+		, "debug": "<%= authorization %>"
+		<% END IF %>
 		}
 <% 	    response.end
 	END IF
