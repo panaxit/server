@@ -25,31 +25,31 @@
     End If
     If rsResult.BOF and rsResult.EOF Then
 	    Session("AccessGranted") = FALSE
-        session("status") = "unauthorized"
+      session("status") = "unauthorized"
     ELSE
-        Response.Status = "200 Ok"
+      Response.Status = "200 Ok"
 	    Session("AccessGranted") = TRUE
-        session("status") = "authorized"
+      session("status") = "authorized"
 	    Response.Cookies("AntiPopUps") = REQUEST.FORM("AntiPopUps")
 	    Response.Cookies("AntiPopUps").Expires = Date() + 1
 	    'Session.Timeout = 600
 	    session("user_id")=rsResult(0)
-        session("expires") = DateAdd("n", session.Timeout, NOW)
-        IF session("user_id")="1" THEN
-            session("debug") = TRUE
-        END IF
+      session("expires") = DateAdd("n", session.Timeout, NOW)
+      IF session("user_id")="1" THEN
+        session("debug") = TRUE
+      END IF
     	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
-        If (SESSION("secret_server_id")<>"") Then
-	        oCn.ConnectionTimeout = 5
-	        oCn.CommandTimeout = 120
-            DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
-            If oCn.State = 0 THEN
-                ON ERROR RESUME NEXT
-                oCn.Open StrCnn
-            END IF
+      If (SESSION("secret_server_id")<>"") Then
+	      oCn.ConnectionTimeout = 5
+	      oCn.CommandTimeout = 120
+          DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")&";database="&SESSION("secret_database_name")
+          If oCn.State = 0 THEN
+              ON ERROR RESUME NEXT
+              oCn.Open StrCnn
+          END IF
 
-	        oCn.execute "IF EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.ROUTINES IST WHERE routine_schema IN ('$Application') AND ROUTINE_NAME IN ('OnStartUp')) BEGIN EXEC [$Application].OnStartUp END"
-        End If
+	      oCn.execute "IF EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.ROUTINES IST WHERE routine_schema IN ('$Application') AND ROUTINE_NAME IN ('OnStartUp')) BEGIN EXEC [$Application].OnStartUp END"
+      End If
     %>
     	    {
 	    "success": true

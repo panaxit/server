@@ -249,16 +249,16 @@ end function
 
 FUNCTION checkConnection(oCn)	
 	DIM oDatabase: SET oDatabase = getConfiguration()
-    SESSION("connection_id") = oDatabase.getAttribute("Id")
-    SESSION("database_id") = oDatabase.getAttribute("Id")
+  SESSION("connection_id") = oDatabase.getAttribute("Id")
+  SESSION("database_id") = oDatabase.getAttribute("Id")
 
-    DIM sDatabaseName, sDatabaseDriver, sDatabaseEngine, sDatabaseServer, sDatabaseUser, sDatabasePassword, sAuthority, sUserName
-    sDatabaseName  		= oDatabase.getAttribute("Name")
-    sDatabaseEngine 	= oDatabase.getAttribute("Engine")
-    sDatabaseServer		= oDatabase.getAttribute("Server")
-    sDatabaseUser     	= oDatabase.getAttribute("User")
-    sDatabasePassword 	= oDatabase.getAttribute("Password")
-    sDefaultUser     	= oDatabase.getAttribute("DefaultUser")
+  DIM sDatabaseName, sDatabaseDriver, sDatabaseEngine, sDatabaseServer, sDatabaseUser, sDatabasePassword, sAuthority, sUserName
+  sDatabaseName  		= oDatabase.getAttribute("Name")
+  sDatabaseEngine 	= oDatabase.getAttribute("Engine")
+  sDatabaseServer		= oDatabase.getAttribute("Server")
+  sDatabaseUser     	= oDatabase.getAttribute("User")
+  sDatabasePassword 	= oDatabase.getAttribute("Password")
+  sDefaultUser     	= oDatabase.getAttribute("DefaultUser")
 	sAuthority			= oDatabase.getAttribute("Authority")
 
     IF ISNULL(sDefaultUser) THEN
