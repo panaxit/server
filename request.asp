@@ -661,6 +661,7 @@ ELSE
 END IF
 IF xml_mode="RAW" THEN
 	strSQL = REPLACE(strSQL, "[@", "[")
+	strSQL = REPLACE(strSQL, """@", """")
 END IF
 
 strSQL = REPLACE(strSQL, "'NULL'", "NULL")
