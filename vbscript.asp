@@ -2550,7 +2550,8 @@ Function getConfiguration()
 			END IF
 		LOOP WHILE oDatabase IS NOTHING AND INSTR(origin, "/") > 0
 	ELSE
-		sConnectionString="1=0"
+		sConnectionString="Referer/text()='DEFAULT' or Origin/text()='DEFAULT'"
+		SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")	
 	END IF
 
 	'IF oDatabase IS NOTHING THEN

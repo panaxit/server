@@ -176,7 +176,7 @@ END IF
 
 DIM page_size: page_size = Request.ServerVariables("HTTP_X_PAGE_SIZE")
 IF page_size="" THEN
-    page_size="100000"
+    page_size="500"
 END IF
 DIM page_index: page_index = Request.ServerVariables("HTTP_X_PAGE_INDEX")
 IF page_index="" THEN
@@ -209,8 +209,10 @@ END IF
 
 ON ERROR RESUME NEXT
 'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
-DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
-'response.write "<!-- "&sRequestType&" -->": response.end
+DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type]=LEFT(PARSENAME(REPLACE(REPLACE(type_desc,'SQL_',''),'_','.'),1),1), [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
+    'IF debug THEN
+    '    response.write "<!-- "&sRequestType&" -->"': response.end
+    'END IF
 'strSQL=URLDecode(sRequestType) 'El símbol de (+) %2B es decodificado mal, revisar si es necesario decodificar
 DIM rsType: SET rsType = oCn.Execute(sRequestType)
 DIM sRoutineName: sRoutineName = URLDecode(request.querystring("RoutineName"))
@@ -441,40 +443,6 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 xmlParameters.LoadXML(rsParameters(0))
             END IF
         END IF
-        
-        'DIM sParameter, ns
-
-        i=0
-
-        DIM rsParameters
-        DIM missingParameters
-        'Set aOutputParameters=Server.CreateObject("Scripting.Dictionary")
-
-        DIM rebuild_parameters_snippet
-        IF rebuild THEN
-            rebuild_parameters_snippet=", @rebuild=1"
-        END IF
-        DIM sSQLParams: sSQLParams="SET NOCOUNT ON; DECLARE @parameters XML; IF OBJECT_ID('[#panax].[getParameters]') IS NOT NULL BEGIN EXEC [#panax].[getParameters] '"&REPLACE(command,"'","''")&"', @parameters=@parameters OUT"&rebuild_parameters_snippet&"; END SELECT ISNULL(@parameters , '')"
-        'IF debug THEN
-            'response.ContentType = "text/xml" 
-            'response.write "<!--"&sSQLParams&"-->" & vbcrlf
-            ''response.end
-        'END IF
-        ON ERROR RESUME NEXT
-        SET rsParameters = oCn.Execute(sSQLParams)
-        IF Err.Number<>0 THEN
-            manageError(Err)
-            response.end
-        END IF
-        DIM xmlOutputParameters:	set xmlOutputParameters = Server.CreateObject("Microsoft.XMLDOM"): xmlOutputParameters.Async = false: 
-        DIM i, sOutputParams
-        IF NOT(rsParameters.BOF AND rsParameters.EOF) AND rsParameters.fields.Count>0 THEN
-	        xmlOutputParameters.LoadXML(rsParameters(0))
-	        i=0
-            IF xmlOutputParameters.documentElement IS NOTHING AND NOT(xmlParameters.selectSingleNode("parameters/*") IS NOTHING) THEN
-                xmlOutputParameters.LoadXML(xmlParameters.xml)
-	        END IF
-        END IF
         FOR EACH sParameter IN request.querystring
 	        IF testMatch(sParameter, "^\@") THEN
 		        sParamValue=URLDecode(request.querystring(sParameter))
@@ -490,6 +458,41 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 xmlParameters.selectSingleNode("parameters").appendChild(param)
 	        END IF
         NEXT
+        
+        'DIM sParameter, ns
+
+        i=0
+
+        DIM rsParameters
+        DIM missingParameters
+        'Set aOutputParameters=Server.CreateObject("Scripting.Dictionary")
+
+        DIM rebuild_parameters_snippet
+        IF rebuild THEN
+            rebuild_parameters_snippet=", @rebuild=1"
+        END IF
+        DIM sSQLParams: sSQLParams="SET NOCOUNT ON; DECLARE @parameters XML = '<![CDATA["&REPLACE(request.QueryString,"'","''")&"]]>'; IF OBJECT_ID('[#panax].[getParameters]') IS NOT NULL BEGIN EXEC [#panax].[getParameters] '"&REPLACE(command,"'","''")&"', @parameters=@parameters OUT"&rebuild_parameters_snippet&"; END SELECT ISNULL(@parameters , '')"
+        IF debug THEN
+            response.ContentType = "text/xml" 
+            response.write "<!--"&request.QueryString&"-->" & vbcrlf
+            response.write "<!--"&sSQLParams&"-->" & vbcrlf
+            'response.end
+        END IF
+        ON ERROR RESUME NEXT
+        SET rsParameters = oCn.Execute(sSQLParams)
+        IF Err.Number<>0 THEN
+            manageError(Err)
+            response.end
+        END IF
+        DIM xmlOutputParameters:	set xmlOutputParameters = Server.CreateObject("Microsoft.XMLDOM"): xmlOutputParameters.Async = false: 
+        DIM i, sOutputParams
+        IF NOT(rsParameters.BOF AND rsParameters.EOF) AND rsParameters.fields.Count>0 THEN
+	        xmlOutputParameters.LoadXML(rsParameters(0))
+	        i=0
+            IF xmlOutputParameters.selectSingleNode("*/*") IS NOTHING AND NOT(xmlParameters.selectSingleNode("parameters/*") IS NOTHING) THEN
+                xmlOutputParameters.LoadXML(xmlParameters.xml)
+	        END IF
+        END IF
 
 	    IF NOT(xmlOutputParameters.documentElement IS NOTHING) THEN
 		    DIM sParamsDeclaration
@@ -511,7 +514,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 'ELSE
                 IF NOT(IsEmpty(xParameter) OR xParameter IS NOTHING) THEN
                     sParameterValue = xParameter.Text
-                    IF NOT(IsEmpty(xParameter.getAttribute("xsi:type"))) THEN
+                    IF NOT(IsNull(xParameter.getAttribute("xsi:type"))) THEN
                         sParameterType = xParameter.getAttribute("xsi:type")
                     END IF
                 ELSEIF INSTR(sParameterName,"@@")=1 AND NOT(IsEmpty(SESSION(REPLACE("^"&sParameterName,"^@@","")))) THEN 'Los parámetros con doble arroba pueden mapear automáticamente a variables de sesión.
@@ -553,11 +556,11 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                         sParameterValue="NULL" 'Revisar si se debe iniciarlizar con el valor del default
                     END IF
                     sParamsDefinition=sParamsDefinition& "SELECT "&oNode.getAttribute("name")&"="&sParameterValue&";" 
-                    'IF INSTR(sType,"P")<>0 THEN
-                    '    sParameters=sParameters&sParameterName&"="&sParameterName
-                    'ELSE
+                    IF ISNULL(oNode.getAttribute("ordinalPosition")) THEN'INSTR(sType,"P")<>0 THEN
+                        sParameters=sParameters&sParameterName&"="&sParameterName
+                    ELSE
                         sParameters=sParameters&sParameterName
-                    'END IF
+                    END IF
                 END IF
                 IF oNode.getAttribute("isOutput")=1 THEN
                     sParameters=sParameters&" OUT"
@@ -787,7 +790,7 @@ DO
                 [<% dim f: f=0: DO UNTIL recordset.EOF 
                     f = f + 1 %>
                 {"#":<%= f %>
-<% FOR EACH oField IN recordset.fields 
+                <% FOR EACH oField IN recordset.fields 
                         IF oField.name="" THEN 
                         END IF 
                         IF TypeName(oField)="Field" THEN 
@@ -800,7 +803,7 @@ DO
                     }
                     <% recordset.MoveNext
  	                LOOP %>]
-<% recordset.Close 
+            <% recordset.Close 
              END IF 
         ELSE 
             IF NOT(debug) THEN
