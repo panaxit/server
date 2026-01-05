@@ -8,6 +8,16 @@ DIM content_type: content_type=Request.ServerVariables("HTTP_ACCEPT")
 IF content_type="*/*" OR content_type="*/*, */*" THEN
     content_type="text/xml"
 END IF
+' Tipo de dato “lógico” y SQL derivado del Accept
+Dim acceptValueType, acceptSqlType
+If InStr(1, content_type, "xml", vbTextCompare) > 0 Then
+    acceptValueType = "xml"          ' para xsi:type
+    acceptSqlType   = "XML"          ' tipo SQL
+Else
+    acceptValueType = "string"
+    acceptSqlType   = "nvarchar(MAX)"
+End If
+
 'IF content_type="" THEN
 '    response.write content_type
 '    response.end
@@ -188,7 +198,7 @@ DIM max_records: max_records = Request.ServerVariables("HTTP_X_MAX_RECORDS")
 
 DIM output_parameter: output_parameter = Request.ServerVariables("HTTP_X_OUTPUT_PARAMETER")
 IF output_parameter="" THEN
-    output_parameter=""
+    output_parameter = Request.ServerVariables("HTTP_X_output_parameter")
 END IF
 
 DIM max_recordsets: max_recordsets = Request.ServerVariables("HTTP_X_MAX_RECORDSETS")
@@ -298,7 +308,10 @@ call xmlParameters.setProperty("SelectionNamespaces", "xmlns:xsi='http://www.w3.
 DIM sParameters
 'sParameters=replaceMatch(URLDecode(command),"^"&replaceMatch(sRoutineName,"([\[\]\(\)\.\$\^])","\$1")&"\s*\(?|\)$","")
 If Request.TotalBytes > 0 Then
-    DIM payload_parameter_name: payload_parameter_name=Request.ServerVariables("HTTP_X_PAYLOAD_PARAMETER_NAME")
+    DIM payload_parameter_name: payload_parameter_name=Request.ServerVariables("HTTP_X_PAYLOAD_NAME")
+    IF payload_parameter_name="" THEN
+        payload_parameter_name=Request.ServerVariables("HTTP_X_PAYLOAD_PARAMETER_NAME")
+    END IF
     DIM dataType: dataType="string"
     IF INSTR(Request.ServerVariables("HTTP_CONTENT_TYPE"),"xml")>0 THEN
         DIM xPayload
@@ -493,6 +506,46 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
                 xmlOutputParameters.LoadXML(xmlParameters.xml)
 	        END IF
         END IF
+        ' --- Forzar parámetro de salida desde header
+        If output_parameter <> "" Then
+            ' Solo tiene sentido tratarlo como parámetro si empieza con @
+            If Left(output_parameter, 1) = "@" Then
+                ' Garantizar que exista raíz en xmlOutputParameters
+                If xmlOutputParameters.documentElement Is Nothing Then
+                    xmlOutputParameters.LoadXML("<parameters/>")
+                End If
+
+                Dim outNode
+                ' Buscar si ya existe un param con ese nombre
+                Set outNode = xmlOutputParameters.documentElement.selectSingleNode( _
+                    "/*/*[translate(@name,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ')='" & _
+                    UCase(output_parameter) & "']" _
+                )
+
+                If outNode Is Nothing Then
+                    ' Crear nodo nuevo de parámetro de salida, tipado por Accept
+                    Set outNode = xmlOutputParameters.createElement("param")
+                    outNode.setAttribute "name", output_parameter
+                    outNode.setAttribute "dataType", acceptSqlType      ' XML o nvarchar(MAX)
+                    outNode.setAttribute "isOutput", 1
+
+                    ' (Opcional) marcar el tipo lógico por si lo usas en XSLT u otros lugares:
+                    ' outNode.setAttribute "xsi:type", acceptValueType
+
+                    xmlOutputParameters.documentElement.appendChild outNode
+                Else
+                    ' Si ya existía, completar tipo y marcarlo como OUTPUT si hace falta
+                    If outNode.getAttribute("isOutput") <> "1" Then
+                        outNode.setAttribute "isOutput", 1
+                    End If
+                    If IsNull(outNode.getAttribute("dataType")) _
+                       Or outNode.getAttribute("dataType") = "" Then
+                        outNode.setAttribute "dataType", acceptSqlType
+                    End If
+                End If
+            End If
+        End If
+        ' --- Fin: forzar parámetro de salida ---
 
 	    IF NOT(xmlOutputParameters.documentElement IS NOTHING) THEN
 		    DIM sParamsDeclaration
