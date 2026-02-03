@@ -497,15 +497,45 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
             manageError(Err)
             response.end
         END IF
-        DIM xmlOutputParameters:	set xmlOutputParameters = Server.CreateObject("Microsoft.XMLDOM"): xmlOutputParameters.Async = false: 
-        DIM i, sOutputParams
-        IF NOT(rsParameters.BOF AND rsParameters.EOF) AND rsParameters.fields.Count>0 THEN
-	        xmlOutputParameters.LoadXML(rsParameters(0))
-	        i=0
-            IF xmlOutputParameters.selectSingleNode("*/*") IS NOTHING AND NOT(xmlParameters.selectSingleNode("parameters/*") IS NOTHING) THEN
-                xmlOutputParameters.LoadXML(xmlParameters.xml)
-	        END IF
+        DIM xmlOutputParameters: set xmlOutputParameters = Server.CreateObject("Microsoft.XMLDOM")
+        xmlOutputParameters.Async = false
+
+        DIM sqlHasChild, reqHasChild
+        sqlHasChild = false
+        reqHasChild = (NOT (xmlParameters.selectSingleNode("*") IS NOTHING))
+        IF NOT(rsParameters.BOF AND rsParameters.EOF) AND rsParameters.Fields.Count > 0 THEN
+            xmlOutputParameters.LoadXML rsParameters(0)
+
+            sqlHasChild = true
         END IF
+
+        ' Si SQL no trajo nada útil, pero el request sí, usar request tal cual
+        IF (NOT sqlHasChild) AND reqHasChild THEN
+            xmlOutputParameters.LoadXML xmlParameters.xml
+            sqlHasChild = true
+        END IF
+
+        ' Si ambos tienen info, mezclar: copiar hijos del request al XML de salida
+        IF sqlHasChild AND reqHasChild THEN
+            DIM outRoot, inRoot, node
+
+            ' Asegurar root destino <parameters>
+            SET outRoot = xmlOutputParameters.selectSingleNode("*")
+            IF outRoot IS NOTHING THEN
+                ' Si no existe, crearlo como root (limpia y crea)
+                xmlOutputParameters.LoadXML "<parameters/>"
+                SET outRoot = xmlOutputParameters.documentElement
+            END IF
+
+            SET inRoot = xmlParameters.selectSingleNode("parameters")
+            IF NOT (inRoot IS NOTHING) THEN
+                FOR EACH node IN inRoot.childNodes
+                    ' Import/clone al documento destino
+                    outRoot.appendChild xmlOutputParameters.importNode(node, True)
+                NEXT
+            END IF
+        END IF
+
         ' --- Forzar parámetro de salida desde header
         If output_parameter <> "" Then
             ' Solo tiene sentido tratarlo como parámetro si empieza con @
@@ -675,7 +705,7 @@ DIM namespaces: namespaces = Request.ServerVariables("HTTP_X_NAMESPACES")
 IF INSTR(namespaces&" "," as meta ")=0 THEN'AND (INSTR(data_fields,"meta:")>0 OR INSTR(root_node,"meta:")>0 OR INSTR(row_node,"meta:")>0)THEN
     namespaces = namespaces & ", 'http://panax.io/metadata' as meta"
 END IF
-IF INSTR(namespaces&" "," as xo ")=0 AND (INSTR(data_fields,"xo:")>0 OR INSTR(root_node,"xo:")>0 OR INSTR(row_node,"xo:")>0) THEN
+IF INSTR(namespaces&" "," as xo ")=0 AND (INSTR(sType,"P")<>0 AND sOutputParams<>"" OR INSTR(data_fields,"xo:")>0 OR INSTR(root_node,"xo:")>0 OR INSTR(row_node,"xo:")>0) THEN
     namespaces = namespaces & ", 'http://panax.io/xover' as xo"
 END IF
 IF INSTR(namespaces&" "," as __data ")=0 AND (INSTR(data_fields,"__data:")>0 OR INSTR(root_node,"__data:")>0 OR INSTR(row_node,"__data:")>0) THEN
@@ -839,6 +869,14 @@ DO
                     response.write oXMLFile.xml
                     ON ERROR GOTO 0
                 END IF
+            ELSEIF recordset.fields.Count = 1 AND INSTR(content_type,"plain")>0 THEN
+                Response.ContentType = "text/plain"
+                Response.CharSet = "UTF-8"
+                DO UNTIL recordset.EOF 
+                    Dim v: v = recordset.Fields(0).Value
+                    Response.Write v & vbcrlf
+                    recordset.MoveNext
+ 	            LOOP
             ELSE %>
                 [<% dim f: f=0: DO UNTIL recordset.EOF 
                     f = f + 1 %>
@@ -856,7 +894,7 @@ DO
                     }
                     <% recordset.MoveNext
  	                LOOP %>]
-            <% recordset.Close 
+            <% 'recordset.Close 
              END IF 
         ELSE 
             IF NOT(debug) THEN

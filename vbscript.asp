@@ -2639,9 +2639,9 @@ Function login()
 			IF AuthenticationMethod<>"" THEN
 				SET rsResult = oCn.Execute(strSQL)
 			END IF
+			Session("AccessGranted") = FALSE
+			session("status") = "unauthorized"
 			IF Err.Number<>0 THEN 
-				Session("AccessGranted") = FALSE
-				session("status") = "unauthorized"
 				Response.ContentType = "application/json"
 				Response.CharSet = "ISO-8859-1"
 				IF Err.Number=-2147217911 THEN
@@ -2650,8 +2650,12 @@ Function login()
 					Response.Status = "409 Conflict"
 				END IF
 			ELSE
-				Session("AccessGranted") = TRUE
-				session("status") = "authorized"
+				If rsResult.BOF and rsResult.EOF Then
+					Response.Status = "401 Unauthorized"
+				ELSE
+					Session("AccessGranted") = TRUE
+					session("status") = "authorized"
+				END IF
 			END IF
 	END IF
 	'checkConnection(oCn)
