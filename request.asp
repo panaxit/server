@@ -113,7 +113,7 @@ Sub manageError(Err)
             response.write "<!--"&strSQL&"-->"
         END IF
     %>
-<?xml-stylesheet type="text/xsl" href="message.xslt" role="message" target="body" action="append"?>
+<?xml-stylesheet type="text/xsl" href="message.xslt" role="message" action="append"?>
 <xo:message xmlns:xo="http://panax.io/xover" xo:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="exception"><%= REPLACE(REPLACE(message,">","&gt;"),"<","&lt;") %></xo:message>
 <%  ELSEIF INSTR(content_type,"json")>0 THEN
     Response.ContentType = "application/json" %>
@@ -668,7 +668,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         response.ContentType = "text/xml"
         Response.Status = "412 Precondition Failed" 
 %>
-<?xml-stylesheet type="text/xsl" href="prompt.xslt" role="modal" target="body" ?>
+<?xml-stylesheet type="text/xsl" href="prompt.xslt" role="modal" ?>
 <xo:prompt xmlns:xo="http://panax.io/xover"><%= xmlOutputParameters.xml %></xo:prompt>
 <%
         response.end
