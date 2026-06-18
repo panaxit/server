@@ -1,4 +1,4 @@
-﻿<!--#include file="vbscript.asp"-->
+<!--#include file="vbscript.asp"-->
 <% 
 'for each x in Request.ServerVariables
   'response.write("<!--" & x & ": " & Request.ServerVariables(x) & "-->")
@@ -23,7 +23,7 @@ End If
 '    response.end
 'END IF
 DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
-If (authorization<>"") Then
+If (authorization<>"" AND NOT(Session("AccessGranted"))) Then
     login
 End if
 
@@ -31,7 +31,7 @@ Server.ScriptTimeOut=1200
 response.Buffer=true
 IF NOT(Session("AccessGranted")) THEN 
     Response.ContentType = "application/json"
-    Response.CharSet = "ISO-8859-1"
+    Response.CharSet = "UTF-8"
     Response.Status = "401 Unauthorized" %>
     {
         "status":"unauthorized"
@@ -155,6 +155,7 @@ IF Err.Number<>0 THEN
     END IF
     response.end
 END IF
+Response.AddHeader "Resource-Base", "local"
 oCn.Execute("SET LANGUAGE SPANISH")
 ON ERROR GOTO 0
     %>
@@ -169,7 +170,7 @@ IF debug="" THEN
 END IF
 SESSION("debug") = debug
     
-Response.CharSet = "ISO-8859-1"
+Response.CharSet = "UTF-8"
 DIM api_key: api_key = Request.ServerVariables("HTTP_API_KEY") 'TODO: Implement
 DIM root_node: root_node = Request.ServerVariables("HTTP_X_ROOT_NODE")
 IF root_node="" THEN
@@ -198,7 +199,7 @@ DIM max_records: max_records = Request.ServerVariables("HTTP_X_MAX_RECORDS")
 
 DIM output_parameter: output_parameter = Request.ServerVariables("HTTP_X_OUTPUT_PARAMETER")
 IF output_parameter="" THEN
-    output_parameter = Request.ServerVariables("HTTP_X_output_parameter")
+    output_parameter = Request.ServerVariables("HTTP_X_OUTPUT_PARAMETER")
 END IF
 
 DIM max_recordsets: max_recordsets = Request.ServerVariables("HTTP_X_MAX_RECORDSETS")
@@ -667,7 +668,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         response.ContentType = "text/xml"
         Response.Status = "412 Precondition Failed" 
 %>
-<?xml-stylesheet type="text/xsl" href="prompt.xslt" role="modal" target="@#shell main" ?>
+<?xml-stylesheet type="text/xsl" href="prompt.xslt" role="modal" target="body" ?>
 <xo:prompt xmlns:xo="http://panax.io/xover"><%= xmlOutputParameters.xml %></xo:prompt>
 <%
         response.end

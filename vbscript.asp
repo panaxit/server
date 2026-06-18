@@ -275,6 +275,13 @@ FUNCTION checkConnection(oCn)
 	IF INSTR(authorization,":")<>0 THEN
 		sUserLogin = Split(authorization, ":")(0)
 		decrypted_password = Split(authorization, ":")(1)
+		IF (INSTR(decrypted_password,"Basic ")=1) THEN
+			authorization = Base64Decode(MID(decrypted_password,7))
+			IF sUserLogin = Split(authorization, ":")(0) THEN
+				sUserLogin = Split(authorization, ":")(0)
+				decrypted_password = Split(authorization, ":")(1)
+			END IF
+		END IF
 		set jwt = decodeJWT(decrypted_password)
 		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
 			DIM sClientId: sClientId = ""
@@ -286,11 +293,11 @@ FUNCTION checkConnection(oCn)
 				Session("AccessGranted") = FALSE
 				session("status") = "unauthorized"
 				Response.ContentType = "application/json"
-				Response.CharSet = "ISO-8859-1"
+				Response.CharSet = "UTF-8"'"ISO-8859-1"
 				Response.Status = "500 Internal Server Error" %>
 				{
 				"success": false,
-				"message": "No se encontrÛ definido el <%= sAuthority %>-client-id en el archivo de configuraciÛn system.config"
+				"message": "No se encontr√≥ definido el <%= sAuthority %>-client-id en el archivo de configuraci√≥n system.config"
 				}
 			<% 	response.end
 			END IF
@@ -325,7 +332,7 @@ FUNCTION checkConnection(oCn)
 			message = "Usuario no autorizado"
 		END IF
 		Response.ContentType = "application/json"
-		Response.CharSet = "ISO-8859-1"
+		Response.CharSet = "UTF-8"
 		Response.Status = "401 Unauthorized" %>
 		{
 		"success": false,
@@ -358,10 +365,10 @@ FUNCTION checkConnection(oCn)
 			Session("AccessGranted") = FALSE
 			session("status") = "unauthorized"
 	        Response.ContentType = "application/json"
-			Response.CharSet = "ISO-8859-1"
+			Response.CharSet = "UTF-8"
 			Response.Status = "401 Unauthorized" 
 			IF Base64Encoding THEN
-				message = "ConexiÛn no autorizada"
+				message = ""
 			END IF %>
 			{
 			"message": "<%= message %>"
@@ -423,7 +430,7 @@ FUNCTION checkConnection(oCn)
 					IF Err.Number<>0 THEN 
 						'response.write "Here 2 "&oCn.State
 						Response.ContentType = "application/json"
-						Response.CharSet = "ISO-8859-1"
+						Response.CharSet = "UTF-8"
 						ErrorDesc=SqlRegEx.Replace(Err.Description, "")
 						'response.Write ErrorDesc
 						IF INSTR(ErrorDesc,"SQL Server does not exist or access denied")>0 OR INSTR(ErrorDesc,"Communication link failure")>0 THEN
@@ -431,7 +438,7 @@ FUNCTION checkConnection(oCn)
 		%>
 						{
 						"success": false,
-						"message": "No se pudo establecer una conexiÛn con la base de datos <%= sDatabaseName %>: <%= RegEx_JS_Escape.Replace(SqlRegEx.Replace(Err.Description, ""), "\$&") %>"
+						"message": "No se pudo establecer una conexi√≥n con la base de datos <%= sDatabaseName %>: <%= RegEx_JS_Escape.Replace(SqlRegEx.Replace(Err.Description, ""), "\$&") %>"
 						}
 					<% 	response.end
 						END IF
@@ -452,8 +459,8 @@ Function testMatch(sOriginal, sPatrn)
 	Dim regEx, Match, Matches, strReturn
 	Set regEx = New RegExp
 	regEx.Pattern = sPatrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 	testMatch = regEx.Test(sOriginal)
 End Function
@@ -462,8 +469,8 @@ Function getMatch(sOriginal, sPatrn)
 	Dim regEx, Match, Matches, strReturn
 	Set regEx = New RegExp
 	regEx.Pattern = sPatrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 	Set Matches = regEx.Execute(sOriginal) 
 	Set getMatch = Matches
@@ -473,8 +480,8 @@ Function replaceMatch(sOriginal, sPatrn, sReplacementText)
 	Dim regEx, Match, Matches, strReturn
 	Set regEx = New RegExp
 	regEx.Pattern = sPatrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 	IF IsNullOrEmpty(sOriginal) THEN
 		replaceMatch = ""
@@ -487,8 +494,8 @@ Function replaceEvaluatingMatch(sOriginal, sPatrn, sReplacementText)
 	Dim regEx, Match, Matches, strReturn
 	Set regEx = New RegExp
 	regEx.Pattern = sPatrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 	IF IsNullOrEmpty(sOriginal) THEN
 		replaceEvaluatingMatch = ""
@@ -501,12 +508,12 @@ Function applyTemplate(sOriginal, sPatrn, sTemplate)
 	Dim regEx, Match, Matches, strReturn
 	Set regEx = New RegExp
 	regEx.Pattern = sPatrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 	strReturn=regEx.Replace(sOriginal, sTemplate)
-	strReturn=REPLACE(strReturn, "Ò", "ni")
-	strReturn=REPLACE(strReturn, "—", "NI")
+	strReturn=REPLACE(strReturn, "√±", "ni")
+	strReturn=REPLACE(strReturn, "√ë", "NI")
 	applyTemplate=EVAL(strReturn)
 End Function
 
@@ -516,8 +523,8 @@ Function getDisplayName(strTemp)
 	Dim regEx, Match, Matches
 	Set regEx = New RegExp
 	regEx.Pattern = patrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 	strTemp=regEx.Replace(strTemp, "")
 	getDisplayName=strTemp
@@ -531,7 +538,7 @@ End Function
 Function getMetadataString(sOriginal, sColumnName)
 	Dim patrn, regEx, Match, Submatch, sMetadataString
 	patrn=","&sColumnName&"@{(.*?)}@"
-'	strMatchPattern="´\w*(\([^´]|[\w\(\)\,\s\-]*\))*ª"
+'	strMatchPattern="¬´\w*(\([^¬´]|[\w\(\)\,\s\-]*\))*¬ª"
 '	Debugger Me, "<strong>"&sColumnName&"("&getMatch(","&sOriginal, patrn).Count&"): </strong> ("&sOriginal&"): "
 '	response.write sOriginal &"<br>"
 	For Each Match in getMatch(","&sOriginal, patrn)
@@ -548,7 +555,7 @@ Function getMetadata(sOriginal, sColumnName, sPropertyName)
 	'IF sPropertyName="ControlParameters" THEN Debugger Me, sOriginal
 	strMatchPattern=";@"&sPropertyName&"\:(.*?);@"
 	'IF sPropertyName="ControlParameters" THEN Debugger Me, strMatchPattern
-'	strMatchPattern="´\w*(\([^´]|[\w\(\)\,\s\-]*\))*ª"
+'	strMatchPattern="¬´\w*(\([^¬´]|[\w\(\)\,\s\-]*\))*¬ª"
 	DIM SubMatch
 	i=0
 	For Each Match in getMatch(";"&sOriginal&"@", strMatchPattern)
@@ -576,7 +583,7 @@ Function fncEvaluate(ByVal sInput)
 	ON ERROR  RESUME NEXT
 	EXECUTE("vReturnValue="&CString(sInput).RemoveEntities())
 	IF Err.Number<>0 THEN
-		response.write "OcurriÛ el siguiente error en funcion <strong>fncEvaluate</strong>:"&Err.Description&vbcrlf&"<br> Al evaluar "&sInput&".<br>"
+		response.write "Ocurri√≥ el siguiente error en funcion <strong>fncEvaluate</strong>:"&Err.Description&vbcrlf&"<br> Al evaluar "&sInput&".<br>"
 		Debugger Me, ("vReturnValue="&CString(sInput).RemoveEntities().Replace("(["&chr(13)&""&chr(9)&""&chr(10)&""&vbcr&""&vbcrlf&""&vbtab&"])", "<strong>-especial-</strong>"))
 		response.end
 		Err.Clear
@@ -593,8 +600,8 @@ function evalTemplate(byVal fldformat, ByRef oDictionary, ByVal aDataRow)
 	Dim regEx, Match, Matches
 	Set regEx = New RegExp
 	regEx.Pattern = patrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 ''				response.write fldformat &"-->"
 '	fldvalue=regEx.Replace(fldformat, "getDataRowValue(RowNumber, oDictionary(""fieldsDictionary"")(""$1""))")
@@ -609,8 +616,8 @@ function EvaluateTemplate(byVal fldformat, ByRef oDictionary, ByVal iRecord)
 	Dim regEx, Match, Matches
 	Set regEx = New RegExp
 	regEx.Pattern = patrn
-	regEx.IgnoreCase = True				' Distinguir may˙sculas de min˙sculas.
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.IgnoreCase = True				' Distinguir may√∫sculas de min√∫sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
 	regEx.Global = True
 '	Dim a, i
 '	a=oDictionary.Keys
@@ -681,7 +688,7 @@ Function TextDataBind(byRef sText, ByRef oFields)
 
 '"& (""&RTRIM( Candidato )&"") &" 
 'RESPONSE.WRITE  eval("""Texto: ""&Evaluate(""RTRIM( ""& """""""&Candidato&""""""" &"" )"")&"" Fin Texto""")
-'"&RTRIM(""´Candidatoª""))&"
+'"&RTRIM(""¬´Candidato¬ª""))&"
 
 
 
@@ -690,25 +697,25 @@ Function TextDataBind(byRef sText, ByRef oFields)
 'RESPONSE.WRITE Evaluate("""Nombre: ""& (""&( Candidato )&"") &""""" )
 'RESPONSE.END
 
-'	Set TextDataBind = CString(sText).Replace("""", """""").Append("""").Prepend("""").Replace("(?:&lt;|<)%(.*?)%(?:&gt;|>)", """&Evaluate(""($1)"") &""" ).Replace("(?:&laquo;|´)(.*?)(?:&raquo;|ª)", """&(""$1"")&""").Evaluate()
+'	Set TextDataBind = CString(sText).Replace("""", """""").Append("""").Prepend("""").Replace("(?:&lt;|<)%(.*?)%(?:&gt;|>)", """&Evaluate(""($1)"") &""" ).Replace("(?:&laquo;|¬´)(.*?)(?:&raquo;|¬ª)", """&(""$1"")&""").Evaluate()
 '"""& (""Evaluate( $1 ) "") &"""
 	IF NOT oFields IS NOTHING THEN
 		Set TextDataBind = CString(sText).DoubleQuote() _
-			.Replace("""(?:&laquo;|´)(.*?)(?=[\s]*(?:&raquo;|ª))", """") _
-			.Replace("\[(.*?)\](?=[\)\s]*(?=&raquo;|ª))", "oFields(""$1"").GetCode()") _
-			.Replace("\{(.*?)\}(?=[\)\s]*(&raquo;|ª))", "oFields(""$1"")") _
-			.Replace("#(.*?)#(?=&raquo;|ª)", "session(""$1"")") _
-			.Replace("(?:&laquo;|´)(.*?)(?:&raquo;|ª)", """&( $1 )&""") _
+			.Replace("""(?:&laquo;|¬´)(.*?)(?=[\s]*(?:&raquo;|¬ª))", """") _
+			.Replace("\[(.*?)\](?=[\)\s]*(?=&raquo;|¬ª))", "oFields(""$1"").GetCode()") _
+			.Replace("\{(.*?)\}(?=[\)\s]*(&raquo;|¬ª))", "oFields(""$1"")") _
+			.Replace("#(.*?)#(?=&raquo;|¬ª)", "session(""$1"")") _
+			.Replace("(?:&laquo;|¬´)(.*?)(?:&raquo;|¬ª)", """&( $1 )&""") _
 			.Evaluate()
 	ELSE
 		Set TextDataBind = CString(sText).DoubleQuote() _
-			.Replace("(?:&laquo;|´)(.*?)(?:&raquo;|ª)", """&( $1 )&""") _
+			.Replace("(?:&laquo;|¬´)(.*?)(?:&raquo;|¬ª)", """&( $1 )&""") _
 			.Evaluate()
 	END IF
 End Function
 
 Function TextEvaluate(byRef sText)
-	Set TextEvaluate = CString(sText).Replace("""", """""").Append("""").Prepend("""").Replace("(?:&laquo;|´)(.*?)(?:&raquo;|ª)", """&($1)&""").Evaluate()
+	Set TextEvaluate = CString(sText).Replace("""", """""").Append("""").Prepend("""").Replace("(?:&laquo;|¬´)(.*?)(?:&raquo;|¬ª)", """&($1)&""").Evaluate()
 End Function
 
 Function getDataRowValue(ByVal aDataRow, ByVal FieldColumnNumber)
@@ -864,7 +871,7 @@ Function ToTitleFromPascal(ByVal s)
 	Set Regex = New RegExp
 	Regex.Global = True 
 	Regex.IgnoreCase = False 
-	regEx.Multiline = True				' Distinguir may˙sculas de min˙sculas.
+	regEx.Multiline = True				' Distinguir may√∫sculas de min√∫sculas.
     ' remove name space
 	Regex.Pattern = "(.*\.)(.*)"
 	s0 = Regex.Replace(s, "$2")
@@ -917,16 +924,16 @@ Function ToTitleCase(ByVal text)
 End Function
 
 Function FormatearNombre(strTemp)
-	strTemp=replace(UCASE(strTemp), "¡", "A")
-	strTemp=replace(UCASE(strTemp), "A", "[A¡]")
-	strTemp=replace(UCASE(strTemp), "…", "E")
-	strTemp=replace(UCASE(strTemp), "E", "[E…]")
-	strTemp=replace(UCASE(strTemp), "Õ", "I")
-	strTemp=replace(UCASE(strTemp), "I", "[IÕ]")
-	strTemp=replace(UCASE(strTemp), "”", "O")
-	strTemp=replace(UCASE(strTemp), "O", "[O”]")
-	strTemp=replace(UCASE(strTemp), "⁄", "U")
-	strTemp=replace(UCASE(strTemp), "U", "[U⁄]")
+	strTemp=replace(UCASE(strTemp), "√Å", "A")
+	strTemp=replace(UCASE(strTemp), "A", "[A√Å]")
+	strTemp=replace(UCASE(strTemp), "√â", "E")
+	strTemp=replace(UCASE(strTemp), "E", "[E√â]")
+	strTemp=replace(UCASE(strTemp), "√ç", "I")
+	strTemp=replace(UCASE(strTemp), "I", "[I√ç]")
+	strTemp=replace(UCASE(strTemp), "√ì", "O")
+	strTemp=replace(UCASE(strTemp), "O", "[O√ì]")
+	strTemp=replace(UCASE(strTemp), "√ö", "U")
+	strTemp=replace(UCASE(strTemp), "U", "[U√ö]")
 	FormatearNombre=strTemp
 End Function
 
@@ -1137,14 +1144,14 @@ End Function
 
 Sub BindFile (byRef strFile, byVal oRecordSet)
 	Dim strMatchPattern, i
-	strMatchPattern="´\w*(\([^´]|[\w\(\)\,\s\-]*\))*ª"
+	strMatchPattern="¬´\w*(\([^¬´]|[\w\(\)\,\s\-]*\))*¬ª"
 End Sub
 
 Function interpretaContratos (byRef sContrato) 
 	Dim strMatchPattern, i
 	Dim Matches, Match
 '	sContrato=HTMLDecode(sContrato)
-	strMatchPattern="(?:&laquo;|´)(.*?)(?:&raquo;|ª)"
+	strMatchPattern="(?:&laquo;|¬´)(.*?)(?:&raquo;|¬ª)"
 	Set Matches = getMatch(sContrato, strMatchPattern)
 
 	i=0
@@ -1152,12 +1159,12 @@ Function interpretaContratos (byRef sContrato)
 		i=i+1
 	'	strReturnStr = i&".- Match found at position " 
 	'	strReturnStr = strReturnStr & Match.FirstIndex & ". Match Value is '" 
-	'	strReturnStr = strReturnStr & replace(replace(Match.value, "´", ""), "ª", "") & "'="&EVAL(replace(replace(Match.value, "´", ""), "ª", ""))&"." 
+	'	strReturnStr = strReturnStr & replace(replace(Match.value, "¬´", ""), "¬ª", "") & "'="&EVAL(replace(replace(Match.value, "¬´", ""), "¬ª", ""))&"." 
 if session("IdUsuario")=1 THEN
 'ON ERROR  RESUME NEXT
 END IF
 		sContrato=replace(sContrato, Match.value, EVAL(Match.Submatches(0)))
-	'	sContrato=replace(sContrato, Match.value, "<label style=""text-decoration:'underline';"">&nbsp;&nbsp;&nbsp;"&EVAL(replace(replace(Match.value, "´", ""), "ª", ""))&"&nbsp;&nbsp;&nbsp;</label>")
+	'	sContrato=replace(sContrato, Match.value, "<label style=""text-decoration:'underline';"">&nbsp;&nbsp;&nbsp;"&EVAL(replace(replace(Match.value, "¬´", ""), "¬ª", ""))&"&nbsp;&nbsp;&nbsp;</label>")
 	'	Response.Write(strReturnStr &"<BR>") 
 	Next 
 	interpretaContratos=sContrato
@@ -1324,7 +1331,7 @@ else
 		if (temp1>1) then
 			strng=strng&fncLetra(temp1)& "MILLONES "
 		else
-			strng=strng&fncLetra(temp1)& "MILL”N "
+			strng=strng&fncLetra(temp1)& "MILL√ìN "
 		end if
 	end if
 
@@ -1418,7 +1425,7 @@ else
 		end if
 	end if
 		
-'	//con esto checamos los dem·s
+'	//con esto checamos los dem√°s
 	if (temp2=1) then
 		strng = strng & "UN "
 	elseif (temp2=2) then
@@ -1941,8 +1948,8 @@ End Function
 Class XString
 	Private oStringBuilder
 	Private Sub Class_Initialize()
-'		Set oStringBuilder = CreateObject("System.IO.StringWriter")		'NecesitarÌa .GetStringBuilder()
-		Set oStringBuilder = CreateObject("System.Text.StringBuilder")	'Es m·s eficiente!!
+'		Set oStringBuilder = CreateObject("System.IO.StringWriter")		'Necesitar√≠a .GetStringBuilder()
+		Set oStringBuilder = CreateObject("System.Text.StringBuilder")	'Es m√°s eficiente!!
 	End Sub
 	Private Sub Class_Terminate()
 		Set oStringBuilder = nothing
@@ -2046,7 +2053,7 @@ End Sub
  
 Sub [&Catch](bStop, oSourceClass, sFunctionName, sMessage)
 	IF Err.Number<>0 THEN
-		response.write "<br>OcurriÛ el siguiente error:<strong>"&Err.Description&"</strong>. En funciÛn:<strong>"&vbcrlf&TypeName(oSourceClass)&"."&sFunctionName&"</strong>.<br>"&sMessage&"<br><br>"
+		response.write "<br>Ocurri√≥ el siguiente error:<strong>"&Err.Description&"</strong>. En funci√≥n:<strong>"&vbcrlf&TypeName(oSourceClass)&"."&sFunctionName&"</strong>.<br>"&sMessage&"<br><br>"
 		IF bStop THEN response.end
 		Err.Clear
 	END IF
@@ -2505,11 +2512,11 @@ Function getConfiguration()
 
 	IF oConfiguration.documentElement IS NOTHING THEN
 		Response.ContentType = "application/json"
-		Response.CharSet = "ISO-8859-1"
+		Response.CharSet = "UTF-8"
 		Response.Status = "412 Precondition Failed" %>
 		{
 		"success": false,
-		"message": "No se encontrÛ el archivo de configuraciÛn system.config"
+		"message": "No se encontr√≥ el archivo de configuraci√≥n system.config"
 		}
 	<% 	response.end
 	END IF
@@ -2565,11 +2572,11 @@ Function getConfiguration()
 			sConnectionId=sConnectionId&" "
 		END IF
 		Response.ContentType = "application/json"
-		Response.CharSet = "ISO-8859-1"
+		Response.CharSet = "UTF-8"
 		Response.Status = "401 Unauthorized" %>
 		{
 		"success": false,
-		"message": "No se encontrÛ definida la conexiÛn <%= REPLACE(sConnectionId,"\","\\") %>en el archivo de configuraciÛn system.config",
+		"message": "No se encontr√≥ definida la conexi√≥n <%= REPLACE(sConnectionId,"\","\\") %>en el archivo de configuraci√≥n system.config",
 		"origin": "<%= request.serverVariables("HTTP_ORIGIN") %>"
 		}
 	<% 	response.end
@@ -2578,7 +2585,7 @@ Function getConfiguration()
 End Function
 
 Function login()
-    Response.CharSet = "ISO-8859-1"    
+    Response.CharSet = "UTF-8"    
 	Dim rsResult: Set rsResult = Server.CreateObject("ADODB.RecordSet")
 	Dim oCn: Set oCn = Server.CreateObject("ADODB.Connection")
 	oCn.ConnectionTimeout = 5
@@ -2621,11 +2628,11 @@ Function login()
 			Session("AccessGranted") = FALSE
 			session("status") = "unauthorized"
 			Response.ContentType = "application/json"
-			Response.CharSet = "ISO-8859-1"
+			Response.CharSet = "UTF-8"
 			Response.Status = "500 Internal Server Error" %>
 			{
 			"success": false,
-			"message": "No se encontrÛ definido el mÈtodo de autenticaciÛn en el archivo de configuraciÛn system.config"
+			"message": "No se encontr√≥ definido el m√©todo de autenticaci√≥n en el archivo de configuraci√≥n system.config"
 			}
 		<% 	response.end
 		END IF
@@ -2643,7 +2650,7 @@ Function login()
 			session("status") = "unauthorized"
 			IF Err.Number<>0 THEN 
 				Response.ContentType = "application/json"
-				Response.CharSet = "ISO-8859-1"
+				Response.CharSet = "UTF-8"
 				IF Err.Number=-2147217911 THEN
 					Response.Status = "401 Unauthorized"
 				ELSE 

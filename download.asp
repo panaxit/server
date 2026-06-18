@@ -20,7 +20,7 @@ Server.ScriptTimeOut=1200
 response.Buffer=true
 IF NOT(Session("AccessGranted")) THEN 
     Response.ContentType = "application/json"
-    Response.CharSet = "ISO-8859-1"
+    Response.CharSet = "UTF-8"
     Response.Status = "401 Unauthorized" %>
     {
         "status":"unauthorized"

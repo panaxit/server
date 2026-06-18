@@ -8,7 +8,7 @@
         IF session("user_login")<>"" THEN
             ErrorDesc=SqlRegEx.Replace(Err.Description, "")
         ELSE 
-            ErrorDesc="ConexiÛn no autorizada"
+            ErrorDesc="Conexi√≥n no autorizada"
         END IF
         Session.Contents.Remove("StrCnn")
         %>
@@ -78,7 +78,7 @@
 	    "success": false
         , "user_login": "<%= session("user_login") %>"
         , "status": "unauthorized"
-	    , "message": "Nombre de usuario o contraseÒa inv·lidos"
+	    , "message": "Nombre de usuario o contrase√±a inv√°lidos"
         , "source": "<%= REPLACE(strSQL,"""","""") %>"
 	    }
     <% END IF 

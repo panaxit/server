@@ -2,7 +2,7 @@
 <!--#include file="vbscript.asp"-->
 <%
 DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
-If (authorization<>"") Then
+If (authorization<>"" AND NOT(Session("AccessGranted"))) Then
     login
 End if
 DIM content_type: content_type=Request.ServerVariables("HTTP_ACCEPT")
@@ -11,7 +11,7 @@ response.Buffer=true
 DIM StrCnn: StrCnn = "driver={SQL Server};server="&SESSION("secret_server_id")&";database="&SESSION("secret_database_name")&";uid="&SESSION("secret_database_user")&";pwd="&SESSION("secret_database_password")
 IF NOT(Session("AccessGranted")) THEN
     Response.ContentType = "application/json"
-    Response.CharSet = "ISO-8859-1"
+    Response.CharSet = "UTF-8"
     Response.Status = "401 Unauthorized" %>
     {
         "status":"unauthorized"
@@ -28,7 +28,7 @@ ON ERROR RESUME NEXT
 oCn.Open StrCnn
 IF Err.Number<>0 THEN 
     Response.ContentType = "application/json"
-    Response.CharSet = "ISO-8859-1"
+    Response.CharSet = "UTF-8"
     Response.Status = "401 Unauthorized" %>
 	{
 	"success": false,
@@ -48,7 +48,7 @@ oSiteMap.Async = false:
 'IF NOT(SESSION("UserSiteMap") IS NOTHING) THEN
 '    set oSiteMap =SESSION("UserSiteMap")
 'ELSE
-        Response.CharSet = "ISO-8859-1"
+        Response.CharSet = "UTF-8"
 		DIM sSQL:	sSQL="EXEC [$Security].UserSitemap @@user_id=-1"'&session("user_id")
 	    DIM sitemapFile, sitemap
         sitemapFile=server.MapPath(".")&"\..\web.sitemap"
