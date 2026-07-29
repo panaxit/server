@@ -9,6 +9,9 @@
     "uploadFile": "/server/upload_file.asp",
     "uploadFileManager": "server/upload_file_manager.asp"
   },
+  "session": {
+    "server": "/server"
+  },
   "settings": {
     "#server:login": {
       "headers": {

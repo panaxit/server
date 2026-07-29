@@ -2543,6 +2543,7 @@ Function getConfiguration()
 
 	DIM sConnectionString
 	DIM oDatabase: SET oDatabase = NOTHING
+	DIM retry
 	IF origin <> "" THEN
 		DO 
 			sConnectionString = ""
@@ -2554,8 +2555,11 @@ Function getConfiguration()
 			SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")	
 			IF oDatabase IS NOTHING AND INSTR(origin, "/") > 0 THEN
 				origin = LEFT(origin, INSTRREV(origin, "/") - 1)
+				retry = TRUE
+			ELSE
+				retry = FALSE
 			END IF
-		LOOP WHILE oDatabase IS NOTHING AND INSTR(origin, "/") > 0
+		LOOP WHILE oDatabase IS NOTHING AND retry = TRUE
 	ELSE
 		sConnectionString="Referer/text()='DEFAULT' or Origin/text()='DEFAULT'"
 		SET oDatabase = oConfiguration.documentElement.selectSingleNode("(/configuration/Databases/*["&sConnectionString&"])[last()]")	
