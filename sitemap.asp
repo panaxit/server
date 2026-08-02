@@ -2,7 +2,7 @@
 <!--#include file="vbscript.asp"-->
 <%
 DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
-If (authorization<>"" AND NOT(Session("AccessGranted"))) Then
+If (authorization<>"" AND (NOT(Session("AccessGranted")) OR AuthorizationChanged())) Then
     login
 End if
 DIM content_type: content_type=Request.ServerVariables("HTTP_ACCEPT")

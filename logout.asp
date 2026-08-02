@@ -1,4 +1,5 @@
 ﻿<% DIM content_type: content_type=Request.ServerVariables("HTTP_ACCEPT")
+Session.Contents.RemoveAll
 Session.Abandon
 IF (INSTR(UCASE(content_type),"JSON")>0) THEN
     Response.ContentType = "application/json"

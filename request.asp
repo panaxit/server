@@ -23,7 +23,7 @@ End If
 '    response.end
 'END IF
 DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
-If (authorization<>"" AND NOT(Session("AccessGranted"))) Then
+If (authorization<>"" AND (NOT(Session("AccessGranted")) OR AuthorizationChanged())) Then
     login
 End if
 

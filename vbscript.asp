@@ -206,6 +206,26 @@ Function Hash(HashType, Target)
 
 End Function
 
+Function AuthorizationChanged()
+	Dim currentAuthorization
+	currentAuthorization = Trim(Request.ServerVariables("HTTP_AUTHORIZATION"))
+	If currentAuthorization = "" Then
+		AuthorizationChanged = False
+		Exit Function
+	End If
+	AuthorizationChanged = Session("authorization_hash") <> Hash("sha256", currentAuthorization)
+End Function
+
+Sub RememberAuthorization()
+	Dim currentAuthorization
+	currentAuthorization = Trim(Request.ServerVariables("HTTP_AUTHORIZATION"))
+	If currentAuthorization = "" Then
+		Session.Contents.Remove("authorization_hash")
+	Else
+		Session("authorization_hash") = Hash("sha256", currentAuthorization)
+	End If
+End Sub
+
 Sub CreateFolder(ByVal FullPath)
     Set fso = CreateObject("Scripting.FileSystemObject")
     If Not fso.FolderExists(FullPath) Then
@@ -364,13 +384,18 @@ FUNCTION checkConnection(oCn)
 		IF session("user_login") = "" THEN
 			Session("AccessGranted") = FALSE
 			session("status") = "unauthorized"
-	        Response.ContentType = "application/json"
+			Response.ContentType = "application/json"
 			Response.CharSet = "UTF-8"
-			Response.Status = "401 Unauthorized" 
+			Response.Status = "401 Unauthorized"
+			Response.AddHeader "WWW-Authenticate", "Bearer realm=""neibora"", error=""invalid_token"""
+			Response.AddHeader "Cache-Control", "no-store"
 			IF Base64Encoding THEN
 				message = ""
 			END IF %>
 			{
+			"title": "Invalid access token",
+			"status": 401,
+			"code": "invalid_token",
 			"message": "<%= message %>"
 			}
 		<% 	response.end
@@ -2614,6 +2639,7 @@ Function login()
 		rsResult("user_id").Value = 99999
 		rsResult("user_name").Value = sUserName
 		rsResult.Update
+		RememberAuthorization
 		'response.write "strSQL: "&strSQL: response.end
 
 		Set Login = rsResult
@@ -2668,6 +2694,9 @@ Function login()
 					session("status") = "authorized"
 				END IF
 			END IF
+	END IF
+	IF Session("AccessGranted") THEN
+		RememberAuthorization
 	END IF
 	'checkConnection(oCn)
 	'	alert('<%= REPLACE(strSQL, "'", "\'") %%')

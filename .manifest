@@ -21,7 +21,7 @@
     "~.asp": {
       "headers": {
         "x-origin-id": "${xover.session.origin_id || ''}",
-        "authorization": "${xover.session.id_token}"
+        "authorization": "${xover.session.authorization}"
       }
     }
   }
