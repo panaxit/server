@@ -220,21 +220,97 @@ END IF
 
 ON ERROR RESUME NEXT
 'DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type], [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&command&"') END"
-DIM sRequestType: sRequestType="SET NOCOUNT ON; IF OBJECT_ID('#panax.getObjectInfoForUser') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #panax.getObjectInfoForUser('"&REPLACE(command,"'","''")&"','"&SESSION("user_login")&"') o END ELSE BEGIN IF OBJECT_ID('#Object.FindObjectsInQuery') IS NOT NULL BEGIN SELECT TOP 1 [Type], [Object_Name] FROM #Object.FindObjectsInQuery('"&REPLACE(command,"'","''")&"') ORDER by Position END ELSE BEGIN SELECT [Type]=LEFT(PARSENAME(REPLACE(REPLACE(type_desc,'SQL_',''),'_','.'),1),1), [Object_Name]=QUOTENAME(OBJECT_SCHEMA_NAME(o.object_id))+'.'+QUOTENAME(OBJECT_NAME(o.object_id)) FROM sys.objects o WHERE o.object_id=OBJECT_ID('"&REPLACE(command,"'","''")&"') END END"
-    'IF debug THEN
-    '    response.write "<!-- "&sRequestType&" -->"': response.end
-    'END IF
-'strSQL=URLDecode(sRequestType) 'El símbol de (+) %2B es decodificado mal, revisar si es necesario decodificar
-DIM rsType: SET rsType = oCn.Execute(sRequestType)
-DIM sRoutineName: sRoutineName = URLDecode(request.querystring("RoutineName"))
-IF NOT (rsType.BOF and rsType.EOF) THEN 
-    sType = rsType("Type")
-    sRoutineName = rsType("Object_Name")
-ELSEIF Request.ServerVariables("HTTP_QUERY_TYPE")<>"" THEN
-    sType = Request.ServerVariables("HTTP_QUERY_TYPE")
+ON ERROR RESUME NEXT
+
+DIM sCommand
+DIM sUsername
+DIM sRequestType
+DIM rsType
+DIM sRoutineName
+
+sCommand = REPLACE(command, "'", "''")
+sUsername = REPLACE(SESSION("user_login"), "'", "''")
+
+sRequestType = _
+	"SET NOCOUNT ON; " & _
+
+	"IF OBJECT_ID(N'[#panax].[resolveObjectForUser]', N'P') IS NOT NULL " & _
+	"BEGIN " & _
+		"EXEC [#panax].[resolveObjectForUser] " & _
+			"@object_name = N'" & sCommand & "', " & _
+			"@username = N'" & sUsername & "'; " & _
+	"END " & _
+
+	"ELSE IF OBJECT_ID(N'[#panax].[getObjectInfoForUser]') IS NOT NULL " & _
+	"BEGIN " & _
+		"SELECT TOP (1) " & _
+			"[Type], " & _
+			"[Object_Name] " & _
+		"FROM [#panax].[getObjectInfoForUser](" & _
+			"N'" & sCommand & "', " & _
+			"N'" & sUsername & "'" & _
+		") AS O; " & _
+	"END " & _
+
+	"ELSE IF OBJECT_ID(N'[#Object].[FindObjectsInQuery]') IS NOT NULL " & _
+	"BEGIN " & _
+		"SELECT TOP (1) " & _
+			"[Type], " & _
+			"[Object_Name] " & _
+		"FROM [#Object].[FindObjectsInQuery](" & _
+			"N'" & sCommand & "'" & _
+		") " & _
+		"ORDER BY Position; " & _
+	"END " & _
+
+	"ELSE " & _
+	"BEGIN " & _
+		"SELECT " & _
+			"[Type] = LEFT(" & _
+				"PARSENAME(" & _
+					"REPLACE(" & _
+						"REPLACE(O.type_desc, 'SQL_', ''), " & _
+						"'_', '.'" & _
+					"), " & _
+					"1" & _
+				"), " & _
+				"1" & _
+			"), " & _
+			"[Object_Name] = " & _
+				"QUOTENAME(OBJECT_SCHEMA_NAME(O.object_id)) " & _
+				"+ N'.' + " & _
+				"QUOTENAME(OBJECT_NAME(O.object_id)) " & _
+		"FROM sys.objects AS O " & _
+		"WHERE O.object_id = OBJECT_ID(N'" & sCommand & "'); " & _
+	"END;"
+
+SET rsType = oCn.Execute(sRequestType)
+
+IF Err.Number <> 0 THEN
+	manageError Err
+	Response.End
+END IF
+
+sRoutineName = URLDecode(Request.QueryString("RoutineName"))
+
+IF NOT (rsType.BOF AND rsType.EOF) THEN
+	sType = rsType("Type")
+	sRoutineName = rsType("Object_Name")
+
+ELSEIF Request.ServerVariables("HTTP_QUERY_TYPE") <> "" THEN
+	sType = Request.ServerVariables("HTTP_QUERY_TYPE")
+
 ELSE
-    Response.Status = "404 Not found"
-    Response.End
+	Response.Status = "404 Not Found"
+	Response.ContentType = "application/json"
+	Response.CharSet = "UTF-8"
+	%>
+	{
+		"success": false,
+		"message": "Módulo '<%= command %>' no encontrado o sin permisos."
+	}
+	<%
+	Response.End
 END IF
 
 'response.write "sRoutineName: "&sRoutineName: response.end

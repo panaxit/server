@@ -1,5 +1,7 @@
 <%
-Const adInteger = 3
+Response.CodePage = 65001
+Session.CodePage = 65001
+	Const adInteger = 3
 Const adVarChar = 200
 Function Base64Encode(sText)
     Dim oXML, oNode
