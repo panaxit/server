@@ -110,7 +110,8 @@ Sub manageError(Err)
     IF INSTR(content_type,"xml")>0 THEN 
         response.ContentType = "text/xml" 
         IF SESSION("user_login")="webmaster" OR INSTR(SESSION("user_login"),"@panax.io")<>0 OR SESSION("debug") THEN
-            response.write "<!--"&strSQL&"-->"
+			    'response.write "<!--"&sRequestType&"-->" & vbcrlf
+          response.write "<!--"&strSQL&"-->"
         END IF
     %>
 <?xml-stylesheet type="text/xsl" href="message.xslt" role="message" action="append"?>
@@ -293,11 +294,24 @@ END IF
 
 sRoutineName = URLDecode(Request.QueryString("RoutineName"))
 
-IF NOT (rsType.BOF AND rsType.EOF) THEN
+DIM bObjectFound
+bObjectFound = False
+
+IF NOT rsType IS NOTHING THEN
+	IF rsType.State = 1 THEN ' adStateOpen
+		IF rsType.Fields.Count > 0 THEN
+			IF NOT (rsType.BOF AND rsType.EOF) THEN
+				bObjectFound = True
+			END IF
+		END IF
+	END IF
+END IF
+
+IF bObjectFound THEN
 	sType = rsType("Type")
 	sRoutineName = rsType("Object_Name")
 
-ELSEIF Request.ServerVariables("HTTP_QUERY_TYPE") <> "" THEN
+ELSEIF Trim(Request.ServerVariables("HTTP_QUERY_TYPE")) <> "" THEN
 	sType = Request.ServerVariables("HTTP_QUERY_TYPE")
 
 ELSE
@@ -831,8 +845,11 @@ END IF
 
 strSQL = REPLACE(strSQL, "'NULL'", "NULL")
 strSQL = REPLACE(strSQL, "'null'", "null")
-'strSQL = "BEGIN TRY "EXECUTE AS USER='"&session("user_login")&"' END TRY BEGIN CATCH END CATCH; "
-strSQL = sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL
+strSQL = "IF DATABASE_PRINCIPAL_ID(N'" & sUsername & "') IS NOT NULL " & _
+	"BEGIN " & _
+		"EXECUTE AS USER = N'" & sUsername & "'; " & _
+	"END;" & _ 
+	sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL & "; REVERT;"
 
 'strSQL="BEGIN TRY "&strSQL&" END TRY BEGIN CATCH DECLARE @Message NVARCHAR(MAX); SELECT @Message=ERROR_MESSAGE(); EXEC [$Table].[getCustomMessage] @Message=@Message, @Exec=1; END CATCH"
 'ELSE
@@ -859,6 +876,7 @@ IF INSTR(content_type,"xml")>0 THEN
 END IF
 ON ERROR RESUME NEXT
 SET recordset = oCn.Execute(strSQL)
+oCn.Execute "IF USER_NAME()<>ORIGINAL_LOGIN() REVERT;"
 IF Err.Number<>0 THEN 
     manageError(Err)
     response.end
