@@ -78,6 +78,14 @@ Function getQuerystring(keys, join, bFormatValue)
     getQuerystring = string
 End Function
 
+Function booleanJSON(value)
+    IF CBool(value) THEN
+        booleanJSON = "true"
+    ELSE
+        booleanJSON = "false"
+    END IF
+End Function
+
 Sub manageError(Err)
     If TypeName(Err) = "String" Then
         Description = Err
@@ -756,7 +764,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
         command = command & " " & TRIM(sParameters)
     END IF
     'response.write xmlOutputParameters.xml: response.end
-    IF missingParameters=TRUE AND detect_missing_variables=TRUE THEN 
+    IF missingParameters=TRUE AND detect_missing_variables=TRUE AND INSTR(LCASE(Request.ServerVariables("HTTP_ACCEPT")), "application/x-xover-contract")=0 THEN 
         response.ContentType = "text/xml"
         Response.Status = "412 Precondition Failed" 
 %>
@@ -768,6 +776,53 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
 ELSE
     command = sRoutineName
 END IF 
+
+IF INSTR(LCASE(Request.ServerVariables("HTTP_ACCEPT")), "application/x-xover-contract")>0 THEN
+    DIM options_parameters: options_parameters = ""
+	DIM options_parameters_header: options_parameters_header = ""
+	DIM options_output_parameters_header: options_output_parameters_header = ""
+	DIM options_required_parameters_header: options_required_parameters_header = ""
+	DIM contract_accept: contract_accept = LCASE(Request.ServerVariables("HTTP_ACCEPT"))
+	DIM contract_as_json: contract_as_json = INSTR(contract_accept, "application/x-xover-contract+json")>0 OR INSTR(contract_accept, "application/json")>0
+    IF INSTR(sType,"P")<>0 OR INSTR(sType,"F")<>0 THEN
+        IF NOT(xmlOutputParameters.documentElement IS NOTHING) THEN
+            FOR EACH oNode IN xmlOutputParameters.documentElement.selectNodes("/*/*[@name]")
+                IF options_parameters<>"" THEN options_parameters = options_parameters & "," END IF
+				IF oNode.getAttribute("isOutput")="1" THEN
+					IF options_output_parameters_header<>"" THEN options_output_parameters_header = options_output_parameters_header & "," END IF
+					options_output_parameters_header = options_output_parameters_header & oNode.getAttribute("name") & ";type=" & oNode.getAttribute("dataType")
+				ELSE
+					IF options_parameters_header<>"" THEN options_parameters_header = options_parameters_header & "," END IF
+					options_parameters_header = options_parameters_header & oNode.getAttribute("name") & ";type=" & oNode.getAttribute("dataType")
+					IF oNode.getAttribute("isRequired")="1" THEN
+						IF options_required_parameters_header<>"" THEN options_required_parameters_header = options_required_parameters_header & "," END IF
+						options_required_parameters_header = options_required_parameters_header & oNode.getAttribute("name")
+					END IF
+				END IF
+                options_parameters = options_parameters & "{""name"":""" & REPLACE(oNode.getAttribute("name"), """", "\""") & """,""type"":""" & REPLACE(oNode.getAttribute("dataType"), """", "\""") & """,""required"":" & booleanJSON(oNode.getAttribute("isRequired")="1") & ",""output"":" & booleanJSON(oNode.getAttribute("isOutput")="1") & "}"
+            NEXT
+        END IF
+    END IF
+    Response.Status = "200 OK"
+    IF contract_as_json THEN
+        Response.ContentType = "application/x-xover-contract+json"
+    ELSE
+        Response.ContentType = "text/plain"
+    END IF
+    Response.CharSet = "UTF-8"
+    DIM options_contract: options_contract = Hash("md5", command & "|" & sType & "|" & sRoutineName)
+    Response.AddHeader "Cache-Control", "private, max-age=300"
+    Response.AddHeader "X-Contract-Exists", "true"
+    Response.AddHeader "X-Contract-Type", sType
+    Response.AddHeader "X-Contract-Routine", sRoutineName
+	Response.AddHeader "X-Contract-Version", "1"
+    Response.AddHeader "X-Contract-Id", options_contract
+    Response.AddHeader "X-Contract-Parameters", options_parameters_header
+    Response.AddHeader "X-Contract-Output-Parameters", options_output_parameters_header
+    Response.AddHeader "X-Contract-Required-Parameters", options_required_parameters_header
+    IF contract_as_json THEN Response.Write "{""exists"":true,""version"":1,""type"":""" & sType & """,""routine"":""" & REPLACE(sRoutineName, """", "\""") & """,""parameters"":[" & options_parameters & "]}"
+    Response.End
+END IF
 
 FOR EACH sParameter IN request.querystring
 	IF INSTR(sType,"T")<>0 AND NOT(testMatch(sParameter, "^\@|^FROM$|^AND$|^OR$|^WHERE$")) THEN
@@ -845,10 +900,12 @@ END IF
 
 strSQL = REPLACE(strSQL, "'NULL'", "NULL")
 strSQL = REPLACE(strSQL, "'null'", "null")
-strSQL = "IF DATABASE_PRINCIPAL_ID(N'" & sUsername & "') IS NOT NULL " & _
+strSQL = "DECLARE @user_login SYSNAME = N'" & sUsername & "'; IF DATABASE_PRINCIPAL_ID(@user_login) IS NOT NULL " & _
+   "AND DATABASE_PRINCIPAL_ID(@user_login) <> DATABASE_PRINCIPAL_ID(USER_NAME()) " & _
+   "AND HAS_PERMS_BY_NAME(@user_login, N'USER', N'IMPERSONATE') = 1 " & _
 	"BEGIN " & _
-		"EXECUTE AS USER = N'" & sUsername & "'; " & _
-	"END;" & _ 
+	  "EXECUTE AS USER = N'" & sUsername & "'; " & _
+  "END;" & _ 
 	sParamsDeclaration &"SET NOCOUNT ON; "& sParamsDefinition &strSQL & "; REVERT;"
 
 'strSQL="BEGIN TRY "&strSQL&" END TRY BEGIN CATCH DECLARE @Message NVARCHAR(MAX); SELECT @Message=ERROR_MESSAGE(); EXEC [$Table].[getCustomMessage] @Message=@Message, @Exec=1; END CATCH"
