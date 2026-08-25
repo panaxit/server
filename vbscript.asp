@@ -304,34 +304,37 @@ FUNCTION checkConnection(oCn)
 				decrypted_password = Split(authorization, ":")(1)
 			END IF
 		END IF
-		set jwt = decodeJWT(decrypted_password)
-		If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
-			DIM sClientId: sClientId = ""
-			sAuthority = jwt("provider")
-			IF sAuthority <> "" THEN
-				sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
-			END IF
-			IF jwt("client-id")<>"" AND ISNULL(sClientId) THEN 
-				Session("AccessGranted") = FALSE
-				session("status") = "unauthorized"
-				Response.ContentType = "application/json"
-				Response.CharSet = "UTF-8"'"ISO-8859-1"
-				Response.Status = "500 Internal Server Error" %>
-				{
-				"success": false,
-				"message": "No se encontró definido el <%= sAuthority %>-client-id en el archivo de configuración system.config"
-				}
-			<% 	response.end
-			END IF
-			IF NOT(sClientId<>"" AND sClientId <> jwt("client-id")) THEN
-				sPassword = decrypted_password
-			END IF
-			SESSION("secret_password") = sPassword
-			session("secret_token") = sPassword			
-		Else
-			sPassword = decrypted_password 'Hash("md5",decrypted_password)
-		End If
+	ELSE 
+		decrypted_password = authorization
 	END IF
+	set jwt = decodeJWT(decrypted_password)
+	If LEN(decrypted_password) = 32 OR LEN(decrypted_password) >= 1000 OR LEN(decrypted_password) = 0 then
+		DIM sClientId: sClientId = ""
+		sAuthority = jwt("provider")
+		sUserLogin = jwt("email")
+		IF sAuthority <> "" THEN
+			sClientId = oDatabase.getAttribute(sAuthority & "-client-id")
+		END IF
+		IF jwt("client-id")<>"" AND ISNULL(sClientId) THEN 
+			Session("AccessGranted") = FALSE
+			session("status") = "unauthorized"
+			Response.ContentType = "application/json"
+			Response.CharSet = "UTF-8"'"ISO-8859-1"
+			Response.Status = "500 Internal Server Error" %>
+			{
+			"success": false,
+			"message": "No se encontró definido el <%= sAuthority %>-client-id en el archivo de configuración system.config"
+			}
+		<% 	response.end
+		END IF
+		IF NOT(sClientId<>"" AND sClientId <> jwt("client-id")) THEN
+			sPassword = decrypted_password
+		END IF
+		SESSION("secret_password") = sPassword
+		session("secret_token") = sPassword			
+	Else
+		sPassword = decrypted_password 'Hash("md5",decrypted_password)
+	End If
 	IF authorization="" THEN
 		sUserLogin = LCASE(URLDecode(request.form("UserName")))
 		sPassword = URLDecode(request.form("Password"))
@@ -2694,6 +2697,15 @@ Function login()
 				ELSE 
 					Response.Status = "409 Conflict"
 				END IF
+			ELSEIF rsResult IS NOTHING THEN
+				' Execute puede no asignar un Recordset cuando la conexión
+				' está cerrada; deja que login.asp emita la respuesta controlada.
+				Session("AccessGranted") = FALSE
+				session("status") = "unauthorized"
+			ELSEIF rsResult.State <> 1 THEN
+				' No consultar BOF/EOF sobre un Recordset cerrado.
+				Session("AccessGranted") = FALSE
+				session("status") = "unauthorized"
 			ELSE
 				If rsResult.BOF and rsResult.EOF Then
 					Response.Status = "401 Unauthorized"
