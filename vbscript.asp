@@ -2622,6 +2622,12 @@ Function login()
 	oCn.ConnectionTimeout = 5
 	oCn.CommandTimeout = 180
     checkConnection(oCn)
+	' checkConnection puede fallar de forma controlada y dejar la conexión cerrada.
+	' No devuelvas un Recordset cerrado: login.asp necesita distinguir este caso.
+	IF UCASE(SESSION("secret_engine")) = "SQLSERVER" AND oCn.State <> 1 THEN
+		Set Login = Nothing
+		Exit Function
+	END IF
 		
 	sUserName = SESSION("user_login")
 	sPassword = SESSION("secret_password")

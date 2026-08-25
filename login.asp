@@ -23,6 +23,43 @@
 	    }
     <% 	response.end
     End If
+	' Un fallo de conexión puede devolver Nothing; nunca consultes BOF/EOF
+	' sobre un Recordset cerrado porque ADO lo reporta como error no atendido.
+	IF rsResult IS NOTHING THEN
+		Session("AccessGranted") = FALSE
+		session("status") = "unauthorized"
+		Response.Status = "503 Service Unavailable"
+		Response.ContentType = "application/json"
+		%>
+		{
+		"code": 2,
+		"success": false,
+		"status": "<%= session("status") %>",
+		"user_login": "<%= session("user_login") %>",
+		"origin": "<%= session("origin") %>",
+		"connection_id": "<%= session("connection_id") %>",
+		"message": "No se pudo establecer una conexión con la base de datos."
+		}
+		<%
+		Response.End
+	ELSEIF rsResult.State <> 1 THEN
+		Session("AccessGranted") = FALSE
+		session("status") = "unauthorized"
+		Response.Status = "503 Service Unavailable"
+		Response.ContentType = "application/json"
+		%>
+		{
+		"code": 2,
+		"success": false,
+		"status": "<%= session("status") %>",
+		"user_login": "<%= session("user_login") %>",
+		"origin": "<%= session("origin") %>",
+		"connection_id": "<%= session("connection_id") %>",
+		"message": "No se pudo establecer una conexión con la base de datos."
+		}
+		<%
+		Response.End
+	END IF
     If rsResult.BOF and rsResult.EOF Then
 	    Session("AccessGranted") = FALSE
       session("status") = "unauthorized"
