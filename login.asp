@@ -43,9 +43,11 @@
 		<%
 		Response.End
 	ELSEIF rsResult.State <> 1 THEN
+		' La conexión puede estar abierta aunque el procedimiento no devuelva
+		' ningún Recordset. En ese caso no hay ErrorDesc: son credenciales no válidas.
 		Session("AccessGranted") = FALSE
 		session("status") = "unauthorized"
-		Response.Status = "503 Service Unavailable"
+		Response.Status = "401 Unauthorized"
 		Response.ContentType = "application/json"
 		%>
 		{
@@ -55,7 +57,7 @@
 		"user_login": "<%= session("user_login") %>",
 		"origin": "<%= session("origin") %>",
 		"connection_id": "<%= session("connection_id") %>",
-		"message": "No se pudo establecer una conexión con la base de datos."
+		"message": "Nombre de usuario o contraseña inválidos."
 		}
 		<%
 		Response.End

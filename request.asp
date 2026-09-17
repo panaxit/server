@@ -126,7 +126,7 @@ Sub manageError(Err)
 <xo:message xmlns:xo="http://panax.io/xover" xo:id="message_<%= REPLACE(REPLACE(REPLACE(NOW(),":",""),"/","")," ","_") %>" type="exception"><%= REPLACE(REPLACE(message,">","&gt;"),"<","&lt;") %></xo:message>
 <%  ELSEIF INSTR(content_type,"json")>0 THEN
     Response.ContentType = "application/json" %>
-//<%= strSQL  %>
+    {"message":"<%= REPLACE(message, """", "\""") %>"}
 <%  ELSE 
     Response.ContentType = "application/json" %>
     {"message":"<%= REPLACE(message, """", "\""") %>"
@@ -1067,7 +1067,19 @@ DO
 	        this.recordSet=new Array()<% 
         END IF
     END IF 
+    ' El proveedor puede reportar errores diferidos al solicitar el siguiente
+    ' conjunto de resultados (por ejemplo, permisos de sp_OACreate en #xhr).
+    ON ERROR RESUME NEXT
+    DIM deferredErrorDescription
     set recordset = recordset.nextRecordSet
+    IF Err.Number<>0 THEN
+        ' Copiar la descripción antes de que ADO/VBScript la modifique.
+        deferredErrorDescription = Err.Description
+        Err.Clear
+        manageError(deferredErrorDescription)
+        Response.End
+    END IF
+    ON ERROR GOTO 0
 LOOP UNTIL recordset is nothing or r>max_recordsets
 If oCn.State = 1 THEN
     oCn.Close
