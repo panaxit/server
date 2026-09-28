@@ -4,6 +4,48 @@
   'response.write("<!--" & x & ": " & Request.ServerVariables(x) & "-->")
 'next
 'response.write("<!--" & Request.ServerVariables("URL") & "?" & Request.ServerVariables("QUERY_STRING") & "-->")
+Function ContractLogFolder()
+    On Error Resume Next
+    Dim configuration, fso, configPath, folderNode, folder, connectionId
+    Set fso = Server.CreateObject("Scripting.FileSystemObject")
+    configPath = Server.MapPath("../system.config")
+    If Not fso.FileExists(configPath) Then configPath = Server.MapPath("../.config/system.config")
+    If Not fso.FileExists(configPath) Then configPath = Server.MapPath("../../.config/system.config")
+    If Not fso.FileExists(configPath) Then configPath = Server.MapPath("../../../.config/system.config")
+    Set configuration = Server.CreateObject("MSXML2.DOMDocument.6.0")
+    configuration.Async = False
+    connectionId = Trim(Session("connection_id"))
+    If connectionId <> "" And configuration.Load(configPath) Then
+        Set folderNode = configuration.selectSingleNode("/configuration/Databases/*[@Id='" & Replace(connectionId, "'", "&apos;") & "']/@LogFolder")
+        If Not folderNode Is Nothing Then folder = Trim(folderNode.value)
+    End If
+    If folder <> "" And InStr(folder, ":\") = 0 And Left(folder, 2) <> "\\" Then
+        folder = Server.MapPath(folder)
+    End If
+    ContractLogFolder = folder
+    On Error GoTo 0
+End Function
+
+Sub LogContract(stage, detail)
+    Dim debugging
+    debugging = LCase(Trim(Request.ServerVariables("HTTP_X_DEBUGGING")))
+    If debugging <> "true" And debugging <> "1" Then Exit Sub
+
+    On Error Resume Next
+    Dim folder, fso, logFile, stream, dayStamp
+    folder = ContractLogFolder()
+    If folder = "" Then Exit Sub
+    Set fso = Server.CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(folder) Then CreateFolder folder
+    dayStamp = Year(Date) & Right("0" & Month(Date), 2) & Right("0" & Day(Date), 2)
+    logFile = folder & "\contracts-" & dayStamp & ".log"
+    Set stream = fso.OpenTextFile(logFile, 8, True, -1)
+    stream.WriteLine Year(Now) & "-" & Right("0" & Month(Now), 2) & "-" & Right("0" & Day(Now), 2) & " " & Time & _
+        " | " & stage & " | " & Request.ServerVariables("REQUEST_METHOD") & " " & Request.ServerVariables("URL") & _
+        "?" & Request.ServerVariables("QUERY_STRING") & " | " & Replace(Replace(detail, vbCr, " "), vbLf, " ")
+    stream.Close
+    On Error GoTo 0
+End Sub
 DIM content_type: content_type=Request.ServerVariables("HTTP_ACCEPT")
 IF content_type="*/*" OR content_type="*/*, */*" THEN
     content_type="text/xml"
@@ -23,6 +65,7 @@ End If
 '    response.end
 'END IF
 DIM authorization: authorization = Request.ServerVariables("HTTP_AUTHORIZATION")
+LogContract "received", "accept=" & content_type
 If (authorization<>"" AND (NOT(Session("AccessGranted")) OR AuthorizationChanged())) Then
     login
 End if
@@ -164,6 +207,7 @@ IF Err.Number<>0 THEN
     END IF
     response.end
 END IF
+LogContract "authorized", "session=" & Session("user_login")
 Response.AddHeader "Resource-Base", "local"
 oCn.Execute("SET LANGUAGE SPANISH")
 ON ERROR GOTO 0
@@ -293,8 +337,8 @@ sRequestType = _
 		"WHERE O.object_id = OBJECT_ID(N'" & sCommand & "'); " & _
 	"END;"
 
+LogContract "resolve-object-sql", sRequestType
 SET rsType = oCn.Execute(sRequestType)
-
 IF Err.Number <> 0 THEN
 	manageError Err
 	Response.End
@@ -591,6 +635,7 @@ IF (INSTR(sType,"P")<>0 OR INSTR(sType,"F")>0) THEN
             'response.end
         END IF
         ON ERROR RESUME NEXT
+        LogContract "parameters-sql", sSQLParams
         SET rsParameters = oCn.Execute(sSQLParams)
         IF Err.Number<>0 THEN
             manageError(Err)
@@ -803,6 +848,7 @@ IF INSTR(LCASE(Request.ServerVariables("HTTP_ACCEPT")), "application/x-xover-con
             NEXT
         END IF
     END IF
+    LogContract "resolved", "type=" & sType & "; routine=" & sRoutineName & "; parameters=" & options_parameters_header
     Response.Status = "200 OK"
     IF contract_as_json THEN
         Response.ContentType = "application/x-xover-contract+json"
@@ -932,6 +978,7 @@ IF INSTR(content_type,"xml")>0 THEN
     response.ContentType = "text/xml" 
 END IF
 ON ERROR RESUME NEXT
+LogContract "execute-sql", strSQL
 SET recordset = oCn.Execute(strSQL)
 oCn.Execute "IF USER_NAME()<>ORIGINAL_LOGIN() REVERT;"
 IF Err.Number<>0 THEN 
