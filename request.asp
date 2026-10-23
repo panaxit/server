@@ -269,6 +269,7 @@ command = getQuerystring(Array("command","FROM"), ",", False)
 command = MID(command, 2)
 IF command="" THEN
     manageError("No command provided")
+    Response.End
 END IF
 
 ON ERROR RESUME NEXT
